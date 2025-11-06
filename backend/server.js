@@ -33,7 +33,7 @@ const app = express();
 
 // Connect to database
 connectDB().catch((err) => {
-  logger.error("❌ MongoDB connection failed:", err);
+  logger.error(" MongoDB connection failed:", err);
   process.exit(1);
 });
 
@@ -123,16 +123,6 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // Routes
 app.use("/api/health", healthRoutes);
 
-// Default root route
-app.get("/", (req, res) => {
-  res.status(200).json({
-    status: "success",
-    message: "📚 Book E-commerce API Server is running",
-    timestamp: new Date().toISOString(),
-    environment: NODE_ENV,
-    documentation: "/api/docs",
-  });
-});
 
 // Error handling middleware
 app.use(notFound);
