@@ -1,7 +1,8 @@
 // auth.middleware.js - CORRECTED VERSION
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
-const config = require('../config/env');
+// const { PORT, MONGO_URI, SESSION_SECRET, NODE_ENV, FRONTEND_URL } = process.env;
+
 const { AppError } = require('../utils/appError');
 
 const protect = async (req, res, next) => {

@@ -13,10 +13,9 @@ const session = require("express-session");
 const MongoStore = require("connect-mongo");
 const path = require("path");
 const fs = require("fs");
-const index= require("./routes/index.routes")
 
 // Load configurations
-const { PORT, MONGO_URI, SESSION_SECRET, NODE_ENV, FRONTEND_URL } = require("./config/env");
+const { PORT, MONGO_URI, SESSION_SECRET, NODE_ENV, FRONTEND_URL } = process.env;
 
 // Database connection
 const connectDB = require("./loaders/connectionDB");
@@ -34,7 +33,7 @@ const app = express();
 
 // Connect to database
 connectDB().catch((err) => {
-  logger.error(" MongoDB connection failed:", err);
+  logger.error("❌ MongoDB connection failed:", err);
   process.exit(1);
 });
 
@@ -124,7 +123,6 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // Routes
 app.use("/api/health", healthRoutes);
 
-app.use("/api", index);
 
 
 // Error handling middleware
@@ -137,7 +135,6 @@ const server = app.listen(PORT, () => {
   logger.info(`📍 Health check: http://localhost:${PORT}/api/health`);
   console.log(`✅ Server running on port ${PORT}`);
 });
-
 
 
 module.exports = app;

@@ -1,15 +1,16 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
-const config = require('../config/env');
-const sendEmail = require('../utils/email');
+
+const sendEmail = require('../utils/2FA/sendEmail');
+const { JWT_SECRET } = process.env;
 
 // ===================== Helper Functions =====================
 
 // Generate JWT Token
 const signToken = (userId) => {
-  return jwt.sign({ userId }, config.jwt.secret, {
-    expiresIn: config.jwt.expiresIn,
+  return jwt.sign({ userId }, JWT_SECRET || "fallback_secret", {
+    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   });
 };
 
