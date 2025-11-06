@@ -13,6 +13,7 @@ const session = require("express-session");
 const MongoStore = require("connect-mongo");
 const path = require("path");
 const fs = require("fs");
+const index= require("./routes/index.routes")
 
 // Load configurations
 const { PORT, MONGO_URI, SESSION_SECRET, NODE_ENV, FRONTEND_URL } = require("./config/env");
@@ -122,17 +123,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Routes
 app.use("/api/health", healthRoutes);
-
-// Default root route
-app.get("/", (req, res) => {
-  res.status(200).json({
-    status: "success",
-    message: "📚 Book E-commerce API Server is running",
-    timestamp: new Date().toISOString(),
-    environment: NODE_ENV,
-    documentation: "/api/docs",
-  });
-});
+app.use("/api", index);
 
 // Error handling middleware
 app.use(notFound);

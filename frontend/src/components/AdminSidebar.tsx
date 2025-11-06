@@ -56,13 +56,13 @@ export function AdminSidebar() {
                       className={({ isActive }) =>
                         `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                           isActive 
-                            ? "bg-primary text-primary-foreground shadow-lg scale-105" 
-                            : "text-foreground hover:bg-primary/10 hover:text-primary"
+                            ? "bg-red-400 text-primary-foreground shadow-lg scale-105" 
+                            : "text-foreground hover:bg-red-400 hover:text-primary"
                         }`
                       }
                     >
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
-                      <span className="font-semibold">{item.title}</span>
+                      <item.icon className="h-5 text-gray-800 w-5 flex-shrink-0" />
+                      <span className="font-semibold text-gray-800">{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
