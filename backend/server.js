@@ -13,6 +13,7 @@ const session = require("express-session");
 const MongoStore = require("connect-mongo");
 const path = require("path");
 const fs = require("fs");
+const index= require("./routes/index.routes")
 
 // Load configurations
 const { PORT, MONGO_URI, SESSION_SECRET, NODE_ENV, FRONTEND_URL } = require("./config/env");
@@ -123,6 +124,8 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // Routes
 app.use("/api/health", healthRoutes);
 
+app.use("/api", index);
+
 
 // Error handling middleware
 app.use(notFound);
@@ -135,19 +138,6 @@ const server = app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
 
-// Graceful shutdown handlers
-process.on("unhandledRejection", (err) => {
-  logger.error("💥 UNHANDLED REJECTION! Shutting down...");
-  logger.error(err);
-  server.close(() => process.exit(1));
-});
 
-process.on("SIGTERM", () => {
-  logger.info("👋 SIGTERM RECEIVED. Shutting down gracefully...");
-  server.close(() => {
-    logger.info("💥 Process terminated!");
-    process.exit(0);
-  });
-});
 
 module.exports = app;
