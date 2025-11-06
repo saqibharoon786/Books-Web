@@ -49,7 +49,7 @@ const userSchema = new mongoose.Schema({
   // Role and Status
   role: {
     type: String,
-    enum: ['superadmin', 'publisher', 'customer'],
+    enum: ['superadmin', 'admin', 'customer'],
     default: 'customer'
   },
   isActive: {
@@ -81,96 +81,38 @@ const userSchema = new mongoose.Schema({
     }
   },
 
-  // CNIC Information
+  // CNIC (simplified, no validation/rejection)
   cnic: {
     number: {
       type: String,
       trim: true,
-      validate: {
-        validator: function(cnic) {
-          if (!cnic) return true; // Optional for some roles
-          return /^[0-9]{5}-[0-9]{7}-[0-9]{1}$/.test(cnic);
-        },
-        message: 'CNIC must be in format: 12345-1234567-1'
-      }
+      default: null
     },
     frontImage: {
-      url: {
-        type: String,
-        default: null
-      },
-      filename: {
-        type: String,
-        default: null
-      },
-      verified: {
-        type: Boolean,
-        default: false
-      },
-      uploadedAt: {
-        type: Date,
-        default: null
-      }
+      url: { type: String, default: null },
+      filename: { type: String, default: null },
+      verified: { type: Boolean, default: false },
+      uploadedAt: { type: Date, default: null }
     },
     backImage: {
-      url: {
-        type: String,
-        default: null
-      },
-      filename: {
-        type: String,
-        default: null
-      },
-      verified: {
-        type: Boolean,
-        default: false
-      },
-      uploadedAt: {
-        type: Date,
-        default: null
-      }
-    },
-    verificationStatus: {
-      type: String,
-      enum: ['pending', 'verified', 'rejected', 'not_submitted'],
-      default: 'not_submitted'
-    },
-    rejectionReason: {
-      type: String,
-      default: null
+      url: { type: String, default: null },
+      filename: { type: String, default: null },
+      verified: { type: Boolean, default: false },
+      uploadedAt: { type: Date, default: null }
     }
   },
 
   // Address Information
   address: {
-    street: {
-      type: String,
-      trim: true
-    },
-    city: {
-      type: String,
-      trim: true
-    },
-    state: {
-      type: String,
-      trim: true
-    },
-    country: {
-      type: String,
-      trim: true,
-      default: 'Pakistan'
-    },
-    zipCode: {
-      type: String,
-      trim: true
-    }
+    street: { type: String, trim: true },
+    city: { type: String, trim: true },
+    state: { type: String, trim: true },
+    country: { type: String, trim: true, default: 'Pakistan' },
+    zipCode: { type: String, trim: true }
   },
 
   // Timestamps and Activity
-  lastLogin: {
-    type: Date,
-    default: null
-  },
+  lastLogin: { type: Date, default: null },
   passwordChangedAt: Date,
   passwordResetToken: String,
   passwordResetExpires: Date,
@@ -193,44 +135,39 @@ userSchema.virtual('completeAddress').get(function() {
   return `${this.address.street}, ${this.address.city}, ${this.address.state}, ${this.address.country} ${this.address.zipCode}`;
 });
 
-// Indexes for better performance
+// Indexes
 userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ isActive: 1 });
-userSchema.index({ 'cnic.verificationStatus': 1 });
 userSchema.index({ createdAt: -1 });
 
-// Pre-save middleware to hash password
+// Hash password before save
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
-  
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 
-// Pre-save middleware to set passwordChangedAt
+// Track password change
 userSchema.pre('save', function(next) {
   if (!this.isModified('password') || this.isNew) return next();
-  
   this.passwordChangedAt = Date.now() - 1000;
   next();
 });
 
-// Pre-save middleware to update profileCompleted status
+// Update profileCompleted flag
 userSchema.pre('save', function(next) {
   const requiredFields = ['firstName', 'lastName', 'email', 'phone'];
   const hasRequiredFields = requiredFields.every(field => this[field]);
-  
   this.profileCompleted = hasRequiredFields;
   next();
 });
 
-// Instance method to check password
+// Instance methods
 userSchema.methods.correctPassword = async function(candidatePassword, userPassword) {
   return await bcrypt.compare(candidatePassword, userPassword);
 };
 
-// Instance method to check if password was changed after JWT was issued
 userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
   if (this.passwordChangedAt) {
     const changedTimestamp = parseInt(this.passwordChangedAt.getTime() / 1000, 10);
@@ -239,55 +176,25 @@ userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
   return false;
 };
 
-// Instance method to update CNIC verification status
-userSchema.methods.updateCNICVerification = function(status, reason = null) {
-  this.cnic.verificationStatus = status;
-  this.cnic.rejectionReason = reason;
-  
-  if (status === 'verified') {
-    this.cnic.frontImage.verified = true;
-    this.cnic.backImage.verified = true;
-  }
-};
-
-// Instance method to check if CNIC is submitted
-userSchema.methods.hasSubmittedCNIC = function() {
-  return this.cnic.frontImage.url !== null && 
-         this.cnic.backImage.url !== null &&
-         this.cnic.number !== null;
-};
-
-// Instance method to get user profile for response
+// Get user profile for response
 userSchema.methods.getProfile = function() {
   const userObj = this.toObject();
-  
-  // Remove sensitive fields
   delete userObj.password;
   delete userObj.passwordChangedAt;
   delete userObj.passwordResetToken;
   delete userObj.passwordResetExpires;
   delete userObj.emailVerificationToken;
   delete userObj.emailVerificationExpires;
-  
   return userObj;
 };
 
-// Static method to find active users
+// Static methods
 userSchema.statics.findActive = function() {
   return this.find({ isActive: true });
 };
 
-// Static method to find users by role
 userSchema.statics.findByRole = function(role) {
   return this.find({ role, isActive: true });
-};
-
-// Static method to find users with pending CNIC verification
-userSchema.statics.findPendingCNICVerification = function() {
-  return this.find({ 
-    'cnic.verificationStatus': 'pending',
-    isActive: true 
-  });
 };
 
 module.exports = mongoose.model('User', userSchema);
