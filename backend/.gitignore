@@ -12,7 +12,7 @@ pnpm-debug.log*
 # =========================
 .env
 .env.local
-.env.*.local
+
 
 # =========================
 # Logs & Temp Files

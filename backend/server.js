@@ -13,15 +13,17 @@ const session = require("express-session");
 const MongoStore = require("connect-mongo");
 const path = require("path");
 const fs = require("fs");
+const IndexRouter = require('./routes/index.routes')
 
 // Load configurations
-const { PORT, MONGO_URI, SESSION_SECRET, NODE_ENV, FRONTEND_URL } = process.env;
-
+const MONGO_URI = process.env.MONGO
+const { PORT, SESSION_SECRET, NODE_ENV, FRONTEND_URL } = process.env;
+console.log("The db is", MONGO_URI)
 // Database connection
 const connectDB = require("./loaders/connectionDB");
 
-// Logger
-const logger = require("./loaders/logger");
+// Remove logger import
+// const logger = require("./loaders/logger");
 
 // Middleware
 const { notFound, errorHandler } = require("./middleware/errorHandler");
@@ -33,7 +35,7 @@ const app = express();
 
 // Connect to database
 connectDB().catch((err) => {
-  logger.error("❌ MongoDB connection failed:", err);
+  console.error("❌ MongoDB connection failed:", err); // Use console instead
   process.exit(1);
 });
 
@@ -75,24 +77,18 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Data sanitization against NoSQL injection & XSS
-app.use(mongoSanitize());
-app.use(xss());
-app.use(hpp());
+// app.use(mongoSanitize());
+// app.use(xss());
+// app.use(hpp());
 
 // Compression
 app.use(compression());
 
-// Logging
+// Logging - Simplified without logger
 if (NODE_ENV === "development") {
   app.use(morgan("dev"));
 } else {
-  app.use(
-    morgan("combined", {
-      stream: {
-        write: (message) => logger.info(message.trim()),
-      },
-    })
-  );
+  app.use(morgan("combined"));
 }
 
 // ✅ FIXED: Session configuration with MongoDB
@@ -102,13 +98,13 @@ app.use(
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
-      mongoUrl: MONGO_URI, // ✅ Correct parameter name
+      mongoUrl: MONGO_URI, 
       collectionName: "sessions",
     }),
     cookie: {
-      secure: NODE_ENV === "production", // only secure in production
+      secure: NODE_ENV === "production", 
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      maxAge: 24 * 60 * 60 * 1000, 
     },
   })
 );
@@ -121,20 +117,19 @@ app.use(passport.session());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Routes
-app.use("/api/health", healthRoutes);
+app.use("/", healthRoutes);
 
+// Index Router
+app.use('/api',IndexRouter)
 
-
-// Error handling middleware
-app.use(notFound);
-app.use(errorHandler);
+// // Error handling middleware
+// app.use(notFound);
+// app.use(errorHandler);
 
 // Start server
 const server = app.listen(PORT, () => {
-  logger.info(`🚀 Server running in ${NODE_ENV} mode on port ${PORT}`);
-  logger.info(`📍 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`🚀 Server running in ${NODE_ENV} mode on port ${PORT}`); // Use console
+  console.log(`📍 Health check: http://localhost:${PORT}/api/health`); // Use console
 });
-
 
 module.exports = app;
