@@ -18,22 +18,22 @@ router.post(
   authController.login
 );
 
-// router.get(
-//   '/verify-email/:token',
-//   authController.verifyEmail
-// );
+router.get(
+  '/verify-email',
+  authController.verifyEmail
+);
 
-// router.post(
-//   '/resend-verification',
-//   rateLimit.authLimiter,
-//   authController.resendVerification
-// );
+router.post(
+  '/resend-verification',
+  // rateLimit.authLimiter,
+  authController.resendVerification
+);
 
-// router.post(
-//   '/forgot-password',
-//   rateLimit.authLimiter,
-//   authController.forgotPassword
-// );
+router.post(
+  '/forgot-password',
+  // rateLimit.authLimiter,
+  authController.forgotPassword
+);
 
 // router.patch(
 //   '/reset-password/:token',
