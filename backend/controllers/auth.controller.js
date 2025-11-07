@@ -1,16 +1,16 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
-
-const sendEmail = require('../utils/2FA/sendEmail');
-const { JWT_SECRET } = process.env;
+const { sendVerificationCode, sendPasswordResetCode } = require('../utils/2FA/sendVerificationCode');
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN;
 
 // ===================== Helper Functions =====================
 
 // Generate JWT Token
 const signToken = (userId) => {
-  return jwt.sign({ userId }, JWT_SECRET || "fallback_secret", {
-    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+  return jwt.sign({ userId }, JWT_SECRET, {
+    expiresIn: JWT_EXPIRES_IN,
   });
 };
 
@@ -28,12 +28,17 @@ const createSendToken = (user, statusCode, res) => {
   });
 };
 
+// Generate 6-digit OTP
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
 // ===================== Controller Functions =====================
 
 // REGISTER
 const register = async (req, res, next) => {
   try {
-    const { firstName, lastName, email, password, phone, address } = req.body;
+    const { firstName, lastName, email, password, phone, verificationMethod = "email" } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser)
@@ -48,37 +53,161 @@ const register = async (req, res, next) => {
       email,
       password,
       phone,
-      address,
     });
 
-    // Generate email verification token
-    const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+    // Generate OTP
+    const verificationCode = generateOTP();
+    
+    // Store OTP in user document (hashed for security)
     newUser.emailVerificationToken = crypto
       .createHash('sha256')
-      .update(emailVerificationToken)
+      .update(verificationCode)
       .digest('hex');
-    newUser.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+    newUser.emailVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     await newUser.save();
 
-    const verificationUrl = `${req.protocol}://${req.get('host')}/api/auth/verify-email/${emailVerificationToken}`;
+    // Send OTP via email or phone
     try {
-      await sendEmail({
-        email: newUser.email,
-        subject: 'Email Verification - Please verify your email',
-        message: `Please verify your email by clicking this link: ${verificationUrl}`,
+      const result = await sendVerificationCode(
+        verificationMethod,
+        verificationCode,
+        `${firstName} ${lastName}`,
+        email,
+        phone,
+        res
+      );
+
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          message: result.message,
+        });
+      }
+
+      res.status(201).json({
+        success: true,
+        message: result.message,
+        data: {
+          user: newUser.getProfile(),
+          verificationMethod,
+          expiresIn: '10 minutes'
+        },
       });
+
     } catch (err) {
-      console.error('Email sending failed:', err);
+      console.error('Verification code sending failed:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send verification code. Please try again.',
+      });
     }
 
-    createSendToken(newUser, 201, res);
   } catch (error) {
     next(error);
   }
 };
 
-// LOGIN
+// VERIFY EMAIL WITH OTP
+const verifyEmail = async (req, res, next) => {
+  try {
+    const { email, verificationCode } = req.body;
+
+    if (!email || !verificationCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email and verification code.',
+      });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(verificationCode).digest('hex');
+
+    const user = await User.findOne({
+      email,
+      emailVerificationToken: hashedToken,
+      emailVerificationExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired verification code.',
+      });
+    }
+
+    user.emailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save();
+
+    // Create and send token after successful verification
+    createSendToken(user, 200, res);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// RESEND VERIFICATION OTP
+const resendVerification = async (req, res, next) => {
+  try {
+    const { email, verificationMethod = "email" } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user)
+      return res.status(404).json({ success: false, message: 'User not found.' });
+
+    if (user.emailVerified)
+      return res.status(400).json({ success: false, message: 'Email already verified.' });
+
+    // Generate new OTP
+    const verificationCode = generateOTP();
+    
+    // Store new OTP
+    user.emailVerificationToken = crypto
+      .createHash('sha256')
+      .update(verificationCode)
+      .digest('hex');
+    user.emailVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    await user.save();
+
+    // Resend OTP
+    try {
+      const result = await sendVerificationCode(
+        verificationMethod,
+        verificationCode,
+        `${user.firstName} ${user.lastName}`,
+        user.email,
+        user.phone,
+        res
+      );
+
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          message: result.message,
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        expiresIn: '10 minutes'
+      });
+
+    } catch (err) {
+      console.error('Resend verification code failed:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to resend verification code. Please try again.',
+      });
+    }
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+// LOGIN (Remains the same, but you might want to add OTP verification for login too)
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -102,6 +231,14 @@ const login = async (req, res, next) => {
         message: 'Your account is deactivated. Please contact support.',
       });
 
+    // Optional: Add 2FA for login
+    if (!user.emailVerified) {
+      return res.status(401).json({
+        success: false,
+        message: 'Please verify your email first.',
+      });
+    }
+
     user.lastLogin = new Date();
     await user.save();
 
@@ -111,107 +248,73 @@ const login = async (req, res, next) => {
   }
 };
 
-// VERIFY EMAIL
-const verifyEmail = async (req, res, next) => {
-  try {
-    const { token } = req.params;
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-
-    const user = await User.findOne({
-      emailVerificationToken: hashedToken,
-      emailVerificationExpires: { $gt: Date.now() },
-    });
-
-    if (!user)
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired verification token.',
-      });
-
-    user.emailVerified = true;
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpires = undefined;
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Email verified successfully. You can now log in.',
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// RESEND VERIFICATION EMAIL
-const resendVerification = async (req, res, next) => {
-  try {
-    const { email } = req.body;
-    const user = await User.findOne({ email });
-
-    if (!user)
-      return res.status(404).json({ success: false, message: 'User not found.' });
-
-    if (user.emailVerified)
-      return res.status(400).json({ success: false, message: 'Email already verified.' });
-
-    const token = crypto.randomBytes(32).toString('hex');
-    user.emailVerificationToken = crypto.createHash('sha256').update(token).digest('hex');
-    user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
-    await user.save();
-
-    const url = `${req.protocol}://${req.get('host')}/api/auth/verify-email/${token}`;
-    await sendEmail({
-      email: user.email,
-      subject: 'Resend Email Verification',
-      message: `Please verify your email using this link: ${url}`,
-    });
-
-    res.status(200).json({
-      success: true,
-      message: 'Verification email resent successfully.',
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// FORGOT PASSWORD
+// FORGOT PASSWORD (You can also implement OTP here)
 const forgotPassword = async (req, res, next) => {
   try {
-    const { email } = req.body;
+    const { email, verificationMethod = "email" } = req.body;
     const user = await User.findOne({ email });
     if (!user)
       return res.status(404).json({ success: false, message: 'User not found.' });
 
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    user.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    user.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+    // Generate OTP for password reset
+    const resetCode = generateOTP();
+    user.passwordResetToken = crypto.createHash('sha256').update(resetCode).digest('hex');
+    user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
     await user.save();
 
-    const resetUrl = `${req.protocol}://${req.get('host')}/api/auth/reset-password/${resetToken}`;
-    await sendEmail({
-      email: user.email,
-      subject: 'Password Reset',
-      message: `Click this link to reset your password: ${resetUrl}`,
-    });
+    // Send OTP for password reset
+    try {
+      const result = await sendVerificationCode(
+        verificationMethod,
+        resetCode,
+        `${user.firstName} ${user.lastName}`,
+        user.email,
+        user.phone,
+        res
+      );
 
-    res.status(200).json({
-      success: true,
-      message: 'Password reset email sent successfully.',
-    });
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          message: result.message,
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        expiresIn: '10 minutes'
+      });
+
+    } catch (err) {
+      console.error('Password reset code sending failed:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send password reset code. Please try again.',
+      });
+    }
+
   } catch (error) {
     next(error);
   }
 };
 
-// RESET PASSWORD
+// RESET PASSWORD WITH OTP
 const resetPassword = async (req, res, next) => {
   try {
-    const { token } = req.params;
-    const { password } = req.body;
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const { email, verificationCode, password } = req.body;
+    
+    if (!email || !verificationCode || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email, verification code and new password.',
+      });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(verificationCode).digest('hex');
 
     const user = await User.findOne({
+      email,
       passwordResetToken: hashedToken,
       passwordResetExpires: { $gt: Date.now() },
     });
@@ -219,7 +322,7 @@ const resetPassword = async (req, res, next) => {
     if (!user)
       return res.status(400).json({
         success: false,
-        message: 'Invalid or expired reset token.',
+        message: 'Invalid or expired verification code.',
       });
 
     user.password = password;
@@ -233,7 +336,7 @@ const resetPassword = async (req, res, next) => {
   }
 };
 
-// CHANGE PASSWORD
+// Other functions remain the same...
 const changePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
