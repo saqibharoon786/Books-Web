@@ -1,9 +1,10 @@
-// auth.middleware.js - CORRECTED VERSION
+// auth.middleware.js - FIXED VERSION
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
-// const { PORT, MONGO_URI, SESSION_SECRET, NODE_ENV, FRONTEND_URL } = process.env;
+const JWT_SECRET = process.env.JWT_SECRET
 
-const { AppError } = require('../utils/appError');
+// Fix: Import AppError correctly
+const AppError = require('../utils/appError');
 
 const protect = async (req, res, next) => {
   try {
@@ -17,7 +18,8 @@ const protect = async (req, res, next) => {
       return next(new AppError('Please log in to access this resource', 401));
     }
 
-    const decoded = jwt.verify(token, config.jwt.secret);
+    // Fix: Replace config.jwt.secret with process.env.JWT_SECRET
+    const decoded = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(decoded.userId);
     
     if (!user) {
