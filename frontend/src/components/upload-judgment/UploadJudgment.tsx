@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { JudgmentService } from "@/services/judgmentService";
+import { JudgmentService } from "@/services/JudgmentService";
 import UploadJudgmentForm from "./UploadJudgmentForm";
 import { Button } from "@/components/ui/button";
 
