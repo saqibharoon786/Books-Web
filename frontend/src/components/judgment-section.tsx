@@ -18,8 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { JudgmentService, type Judgment, type JudgmentFilters } from "@/services/judgmentService";
-
+import { JudgmentService, type Judgment, type JudgmentFilters } from "@/services/JudgmentService";
 // Set up react-pdf worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
