@@ -2,13 +2,13 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { BookService } from "@/services/BookService";
+import { BookService } from "@/services/bookService";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import UploadForm from "./UploadForm";
-import { 
-  Upload, 
-  CheckCircle2, 
+import {
+  Upload,
+  CheckCircle2,
   ArrowLeft,
   BookOpen
 } from "lucide-react";
@@ -23,22 +23,22 @@ const UploadBook = () => {
   const handleSubmit = async (formData: FormData) => {
     try {
       setIsLoading(true);
-      
+
       const response = await BookService.uploadBook(formData);
-      
+
       if (response.success) {
-        const approvalMessage = user?.role === "superadmin" 
-          ? "Book uploaded and automatically approved!" 
+        const approvalMessage = user?.role === "superadmin"
+          ? "Book uploaded and automatically approved!"
           : "Book uploaded successfully! Waiting for super admin approval.";
-        
-        toast({ 
-          title: "🎉 Success", 
+
+        toast({
+          title: "🎉 Success",
           description: approvalMessage,
           variant: "default"
         });
 
         setIsFormOpen(false);
-        
+
         if (user?.role === "superadmin") {
           setTimeout(() => {
             navigate("/superadmin/shop");
@@ -67,10 +67,10 @@ const UploadBook = () => {
   return (
     <div className="min-h-screen p-6 w-full">
       {/* Main container with SuperAdmin layout colors */}
-      <div 
+      <div
         className="w-full mx-auto space-y-6 animate-in fade-in duration-500"
-        style={{ 
-          maxWidth: '1400px', 
+        style={{
+          maxWidth: '1400px',
           backgroundColor: '#0f1729',
           borderRadius: '12px'
         }}
@@ -83,7 +83,7 @@ const UploadBook = () => {
               variant="ghost"
               size="sm"
               className="gap-2 hover:bg-slate-800/50"
-              style={{ 
+              style={{
                 color: '#cbd5e1',
                 border: '1px solid rgba(100, 116, 139, 0.2)'
               }}
@@ -100,10 +100,10 @@ const UploadBook = () => {
               </p>
             </div>
           </div>
-          
+
           {user?.role === "superadmin" && (
-            <div className="flex items-center gap-2 px-4 py-2 rounded-lg" 
-              style={{ 
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg"
+              style={{
                 backgroundColor: '#1e293b',
                 border: '1px solid rgba(100, 116, 139, 0.2)'
               }}
@@ -118,17 +118,17 @@ const UploadBook = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div 
+          <div
             className="p-4 rounded-xl"
-            style={{ 
+            style={{
               backgroundColor: '#1e293b',
               border: '1px solid rgba(100, 116, 139, 0.2)'
             }}
           >
             <div className="flex items-center gap-3">
-              <div 
+              <div
                 className="p-3 rounded-lg"
-                style={{ 
+                style={{
                   backgroundColor: '#2d3748',
                   border: '1px solid rgba(100, 116, 139, 0.2)'
                 }}
@@ -141,18 +141,18 @@ const UploadBook = () => {
               </div>
             </div>
           </div>
-          
-          <div 
+
+          <div
             className="p-4 rounded-xl"
-            style={{ 
+            style={{
               backgroundColor: '#1e293b',
               border: '1px solid rgba(100, 116, 139, 0.2)'
             }}
           >
             <div className="flex items-center gap-3">
-              <div 
+              <div
                 className="p-3 rounded-lg"
-                style={{ 
+                style={{
                   backgroundColor: '#2d3748',
                   border: '1px solid rgba(100, 116, 139, 0.2)'
                 }}
@@ -165,18 +165,18 @@ const UploadBook = () => {
               </div>
             </div>
           </div>
-          
-          <div 
+
+          <div
             className="p-4 rounded-xl"
-            style={{ 
+            style={{
               backgroundColor: '#1e293b',
               border: '1px solid rgba(100, 116, 139, 0.2)'
             }}
           >
             <div className="flex items-center gap-3">
-              <div 
+              <div
                 className="p-3 rounded-lg"
-                style={{ 
+                style={{
                   backgroundColor: '#2d3748',
                   border: '1px solid rgba(100, 116, 139, 0.2)'
                 }}
@@ -192,9 +192,9 @@ const UploadBook = () => {
         </div>
 
         {/* Upload Form Area */}
-        <div 
+        <div
           className="rounded-xl p-6 transition-all duration-300"
-          style={{ 
+          style={{
             backgroundColor: '#1a2234',
             border: '1px solid rgba(100, 116, 139, 0.15)',
             minHeight: '500px'
@@ -211,9 +211,9 @@ const UploadBook = () => {
                     Fill in all required information about the book
                   </p>
                 </div>
-                <div 
+                <div
                   className="px-4 py-2 rounded-lg text-sm"
-                  style={{ 
+                  style={{
                     backgroundColor: '#2d3748',
                     color: '#94a3b8',
                     border: '1px solid rgba(100, 116, 139, 0.2)'
@@ -222,9 +222,9 @@ const UploadBook = () => {
                   All fields marked with * are required
                 </div>
               </div>
-              
+
               {/* Upload Form Component */}
-              <UploadForm 
+              <UploadForm
                 isOpen={isFormOpen}
                 isLoading={isLoading}
                 onSubmit={handleSubmit}
@@ -235,16 +235,16 @@ const UploadBook = () => {
           ) : (
             /* Success State */
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div 
+              <div
                 className="p-6 rounded-2xl mb-6"
-                style={{ 
+                style={{
                   backgroundColor: '#2d3748',
                   border: '1px solid rgba(100, 116, 139, 0.2)'
                 }}
               >
-                <div 
+                <div
                   className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                  style={{ 
+                  style={{
                     backgroundColor: '#334155',
                     border: '1px solid rgba(100, 116, 139, 0.3)'
                   }}
@@ -255,17 +255,17 @@ const UploadBook = () => {
                   Book Uploaded Successfully!
                 </h3>
                 <p className="text-lg mb-6 max-w-md" style={{ color: '#94a3b8' }}>
-                  {user?.role === "superadmin" 
-                    ? "Your book has been uploaded and is now available in the shop." 
+                  {user?.role === "superadmin"
+                    ? "Your book has been uploaded and is now available in the shop."
                     : "Your book has been submitted and is waiting for super admin approval."}
                 </p>
               </div>
-              
+
               <div className="flex gap-4">
                 <Button
                   onClick={() => setIsFormOpen(true)}
                   className="h-12 px-8 text-base font-semibold"
-                  style={{ 
+                  style={{
                     backgroundColor: '#2d3748',
                     color: '#f1f5f9',
                     border: '1px solid rgba(100, 116, 139, 0.3)'
@@ -277,7 +277,7 @@ const UploadBook = () => {
                   onClick={handleCancel}
                   variant="outline"
                   className="h-12 px-8 text-base font-semibold"
-                  style={{ 
+                  style={{
                     color: '#cbd5e1',
                     borderColor: 'rgba(100, 116, 139, 0.3)'
                   }}
@@ -285,11 +285,11 @@ const UploadBook = () => {
                   Return to Dashboard
                 </Button>
               </div>
-              
+
               <div className="mt-8 pt-6 border-t w-full max-w-md" style={{ borderColor: 'rgba(100, 116, 139, 0.15)' }}>
                 <p className="text-sm" style={{ color: '#94a3b8' }}>
-                  Next Steps: {user?.role === "superadmin" 
-                    ? "Your book will appear in the shop immediately." 
+                  Next Steps: {user?.role === "superadmin"
+                    ? "Your book will appear in the shop immediately."
                     : "You'll receive a notification once the book is approved."}
                 </p>
               </div>
@@ -299,9 +299,9 @@ const UploadBook = () => {
 
         {/* Help Section */}
         {isFormOpen && (
-          <div 
+          <div
             className="rounded-xl p-6"
-            style={{ 
+            style={{
               backgroundColor: '#1a2234',
               border: '1px solid rgba(100, 116, 139, 0.15)'
             }}
