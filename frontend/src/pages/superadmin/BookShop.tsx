@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, Eye, CheckCircle, XCircle, Filter, Search, Download, User, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { BookService, Book } from "@/services/bookService.ts";
+import { BookService, Book } from "@/services/bookService";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
@@ -639,8 +639,8 @@ const BookShop = () => {
                         size="sm"
                         onClick={() => handlePageChange(pageNum)}
                         className={`min-w-[40px] ${currentPage === pageNum
-                            ? 'bg-blue-600 text-white hover:bg-blue-700'
-                            : 'border-blue-500/30 text-white hover:bg-white/10'
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'border-blue-500/30 text-white hover:bg-white/10'
                           }`}
                       >
                         {pageNum}
@@ -831,8 +831,8 @@ const BookShop = () => {
                         size="sm"
                         onClick={() => handlePageChange(pageNum)}
                         className={`min-w-[40px] ${currentPage === pageNum
-                            ? 'bg-blue-600 text-white hover:bg-blue-700'
-                            : 'border-blue-500/30 text-white hover:bg-white/10'
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'border-blue-500/30 text-white hover:bg-white/10'
                           }`}
                       >
                         {pageNum}

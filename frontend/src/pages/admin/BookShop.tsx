@@ -4,7 +4,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, Eye, CheckCircle, XCircle, Filter, Search, Star, Download, User, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { BookService, Book } from "@/services/bookService.ts";
+import { BookService, Book } from "@/services/bookService";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
@@ -630,8 +630,8 @@ const BookCard = ({
   handleImageError
 }: any) => (
   <Card className={`group relative overflow-hidden border-2 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 ${getMyBook
-      ? 'border-blue-300 hover:border-blue-400 bg-blue-50/30'
-      : 'border-gray-200 hover:border-purple-300'
+    ? 'border-blue-300 hover:border-blue-400 bg-blue-50/30'
+    : 'border-gray-200 hover:border-purple-300'
     }`}>
     {/* Badge Container */}
     <div className="absolute top-3 left-3 z-10 flex flex-col gap-1">
@@ -657,16 +657,16 @@ const BookCard = ({
           loading="lazy"
         />
         <div className={`absolute inset-0 transition-colors duration-300 ${getMyBook
-            ? 'bg-blue-500/0 group-hover:bg-blue-500/10'
-            : 'bg-black/0 group-hover:bg-black/10'
+          ? 'bg-blue-500/0 group-hover:bg-blue-500/10'
+          : 'bg-black/0 group-hover:bg-black/10'
           }`} />
       </div>
     </CardHeader>
 
     <CardContent className="p-4 space-y-3">
       <CardTitle className={`text-lg leading-tight line-clamp-2 transition-colors ${getMyBook
-          ? 'group-hover:text-blue-600'
-          : 'group-hover:text-purple-600'
+        ? 'group-hover:text-blue-600'
+        : 'group-hover:text-purple-600'
         }`}>
         {book.title}
       </CardTitle>
@@ -722,8 +722,8 @@ const BookCard = ({
         size="sm"
         onClick={() => onEdit(book)}
         className={`flex-1 transition-colors ${getMyBook
-            ? 'hover:bg-green-50 hover:text-green-600 border-green-200'
-            : 'hover:bg-green-50 hover:text-green-600'
+          ? 'hover:bg-green-50 hover:text-green-600 border-green-200'
+          : 'hover:bg-green-50 hover:text-green-600'
           }`}
       >
         <Edit className="h-4 w-4" />
@@ -733,8 +733,8 @@ const BookCard = ({
         size="sm"
         onClick={() => onDelete(book)}
         className={`flex-1 transition-colors ${getMyBook
-            ? 'hover:bg-red-50 hover:text-red-600 border-red-200'
-            : 'hover:bg-red-50 hover:text-red-600'
+          ? 'hover:bg-red-50 hover:text-red-600 border-red-200'
+          : 'hover:bg-red-50 hover:text-red-600'
           }`}
       >
         <Trash2 className="h-4 w-4" />
@@ -757,8 +757,8 @@ const PendingBookCard = ({
   handleImageError
 }: any) => (
   <Card className={`group relative overflow-hidden border-2 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 ${getMyBook
-      ? 'border-blue-300 hover:border-blue-400 bg-blue-50/30'
-      : 'border-yellow-200 hover:border-yellow-300 bg-yellow-50/30'
+    ? 'border-blue-300 hover:border-blue-400 bg-blue-50/30'
+    : 'border-yellow-200 hover:border-yellow-300 bg-yellow-50/30'
     }`}>
     {/* Badge Container */}
     <div className="absolute top-3 left-3 z-10 flex flex-col gap-1">
@@ -782,16 +782,16 @@ const PendingBookCard = ({
           loading="lazy"
         />
         <div className={`absolute inset-0 transition-colors duration-300 ${getMyBook
-            ? 'bg-blue-500/0 group-hover:bg-blue-500/10'
-            : 'bg-yellow-500/0 group-hover:bg-yellow-500/10'
+          ? 'bg-blue-500/0 group-hover:bg-blue-500/10'
+          : 'bg-yellow-500/0 group-hover:bg-yellow-500/10'
           }`} />
       </div>
     </CardHeader>
 
     <CardContent className="p-4 space-y-3">
       <CardTitle className={`text-lg leading-tight line-clamp-2 transition-colors ${getMyBook
-          ? 'group-hover:text-blue-600'
-          : 'group-hover:text-yellow-600'
+        ? 'group-hover:text-blue-600'
+        : 'group-hover:text-yellow-600'
         }`}>
         {book.title}
       </CardTitle>
