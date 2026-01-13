@@ -92,6 +92,10 @@ const purchaseSchema = new mongoose.Schema(
       default: "pending"
     },
     
+        safepayTracker: {
+      type: String,
+      sparse: true
+    },
     // Payout reference
     payout: {
       type: mongoose.Schema.Types.ObjectId,

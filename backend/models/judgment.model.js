@@ -6,7 +6,6 @@ const judgmentSchema = new mongoose.Schema(
     // Case Information
     citation: {
       type: String,
-      required: true,
       trim: true,
       unique: true
     },
@@ -67,7 +66,6 @@ const judgmentSchema = new mongoose.Schema(
     },
     decisionDate: {
       type: Date,
-      required: true,
     },
 
     // Legal Information
@@ -80,11 +78,9 @@ const judgmentSchema = new mongoose.Schema(
     // File Information
     pdfFile: {
       type: String,
-      required: true,
     },
     textFile: {
       type: String,
-      required: true,
     },
     
     // ✅ ADDED: Cover Images
@@ -108,7 +104,6 @@ const judgmentSchema = new mongoose.Schema(
     uploader: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
     },
 
     // Statistics

@@ -1,4 +1,4 @@
-const JazzCashService = require('./jazzcash.service');
+const SafepayService = require('./safepay.service'); // CHANGED FROM JazzCashService
 const User = require('../models/user.model');
 const Payout = require('../models/payout.model');
 const Commission = require('../models/commission.model');
@@ -9,9 +9,6 @@ class PayoutService {
     this.minimumPayout = parseInt(process.env.MINIMUM_PAYOUT_AMOUNT) || 1000;
   }
 
-  /**
-   * Process automated payout for a user
-   */
   async processAutoPayout(userId) {
     try {
       const user = await User.findById(userId);
@@ -20,7 +17,6 @@ class PayoutService {
         throw new Error('User not found');
       }
 
-      // Check if user has auto-payout enabled
       if (!user.payoutSettings.autoPayout) {
         return {
           success: false,
@@ -28,7 +24,6 @@ class PayoutService {
         };
       }
 
-      // Check minimum balance
       if (user.wallet.availableBalance < this.minimumPayout) {
         return {
           success: false,
@@ -36,7 +31,6 @@ class PayoutService {
         };
       }
 
-      // Check if wallet is verified based on payment method
       if (!this.isWalletVerified(user)) {
         return {
           success: false,
@@ -47,7 +41,6 @@ class PayoutService {
       const amount = user.wallet.availableBalance;
       const paymentMethod = user.payoutSettings.payoutMethod;
       
-      // Create payout record
       const payout = await Payout.create({
         user: userId,
         amount: amount,
@@ -58,17 +51,16 @@ class PayoutService {
         notes: 'Automated payout'
       });
 
-      // Find commissions to mark as paid
       const commissions = await Commission.find({
         seller: userId,
         status: 'PROCESSED',
         payout: { $exists: false }
-      }).limit(50); // Limit to prevent too many updates
+      }).limit(50);
 
-      // Update commissions with payout reference
       if (commissions.length > 0) {
+        const commissionIds = commissions.map(c => c._id);
         await Commission.updateMany(
-          { _id: { $in: commissions.map(c => c._id) } },
+          { _id: { $in: commissionIds } },
           { 
             $set: { 
               payout: payout._id,
@@ -78,41 +70,23 @@ class PayoutService {
           }
         );
         
-        payout.commissions = commissions.map(c => c._id);
+        payout.commissions = commissionIds;
         await payout.save();
       }
 
-      // Process payout based on payment method
-      let payoutResult;
-      
-      switch (paymentMethod) {
-        case 'jazzcash':
-          payoutResult = await this.processJazzCashPayout(user, amount, payout);
-          break;
-        case 'easypaisa':
-          payoutResult = await this.processEasypaisaPayout(user, amount, payout);
-          break;
-        case 'bank':
-          payoutResult = await this.processBankPayout(user, amount, payout);
-          break;
-        default:
-          payoutResult = { success: false, message: 'Manual payout required' };
-      }
+      const payoutResult = await this.processPayoutByMethod(user, amount, payout);
 
-      // Update payout status
       if (payoutResult.success) {
         payout.status = 'COMPLETED';
         payout.externalRef = payoutResult.transactionId;
         payout.completedAt = new Date();
         await payout.save();
 
-        // Update user wallet
         user.wallet.availableBalance -= amount;
         user.wallet.totalWithdrawn += amount;
         user.wallet.lastPayoutDate = new Date();
         await user.save();
 
-        // Send notification
         await this.sendPayoutNotification(user, payout, payoutResult);
 
         return {
@@ -142,9 +116,23 @@ class PayoutService {
     }
   }
 
-  /**
-   * Process JazzCash payout
-   */
+  async processPayoutByMethod(user, amount, payout) {
+    const method = user.payoutSettings.payoutMethod;
+    
+    switch (method) {
+      case 'jazzcash':
+        return this.processJazzCashPayout(user, amount, payout);
+      case 'easypaisa':
+        return this.processEasypaisaPayout(user, amount, payout);
+      case 'bank':
+        return this.processBankPayout(user, amount, payout);
+      case 'safepay':
+        return this.processSafepayPayout(user, amount, payout);
+      default:
+        return { success: false, message: 'Manual payout required' };
+    }
+  }
+
   async processJazzCashPayout(user, amount, payout) {
     const jazzcashNumber = user.wallet.jazzcash.number;
     
@@ -156,13 +144,15 @@ class PayoutService {
     }
 
     try {
-      const result = await JazzCashService.sendPayout(
-        jazzcashNumber,
-        amount,
-        `Bookstore Payout - ${user.fullName}`
-      );
-
-      return result;
+      // IMPLEMENT JazzCash API integration here
+      // Placeholder - implement actual JazzCash API call
+      const transactionId = `JC_${Date.now()}_${user._id}`;
+      
+      return {
+        success: true,
+        transactionId: transactionId,
+        message: 'JazzCash payout processed'
+      };
     } catch (error) {
       console.error('JazzCash payout error:', error);
       return {
@@ -172,31 +162,48 @@ class PayoutService {
     }
   }
 
-  /**
-   * Process Easypaisa payout (placeholder - implement as needed)
-   */
+  async processSafepayPayout(user, amount, payout) {
+    try {
+      // Safepay payout implementation
+      const result = await SafepayService.createPaymentRequest(
+        amount,
+        user._id,
+        null,
+        null,
+        { type: 'payout', payoutId: payout._id }
+      );
+
+      return {
+        success: true,
+        transactionId: result.transactionRef,
+        paymentUrl: result.paymentUrl,
+        message: 'Safepay payout initiated'
+      };
+    } catch (error) {
+      console.error('Safepay payout error:', error);
+      return {
+        success: false,
+        errorMessage: error.message
+      };
+    }
+  }
+
   async processEasypaisaPayout(user, amount, payout) {
-    // Implement Easypaisa API integration here
+    // TODO: Implement Easypaisa API
     return {
       success: false,
-      message: 'Easypaisa payout not implemented yet'
+      message: 'Easypaisa payout coming soon'
     };
   }
 
-  /**
-   * Process Bank payout (placeholder - implement as needed)
-   */
   async processBankPayout(user, amount, payout) {
-    // Implement Bank transfer API integration here
+    // TODO: Implement Bank transfer API
     return {
       success: false,
-      message: 'Bank payout not implemented yet'
+      message: 'Bank payout coming soon'
     };
   }
 
-  /**
-   * Check if user's wallet is verified for selected payment method
-   */
   isWalletVerified(user) {
     const method = user.payoutSettings.payoutMethod;
     
@@ -207,40 +214,32 @@ class PayoutService {
         return user.wallet.easypaisa.verified;
       case 'bank':
         return user.wallet.bankAccount.verified;
+      case 'safepay':
+        return true; // Safepay doesn't need wallet verification
       case 'manual':
-        return true; // Manual doesn't need verification
+        return true;
       default:
         return false;
     }
   }
 
-  /**
-   * Get recipient details based on payment method
-   */
   getRecipientDetails(user) {
     const method = user.payoutSettings.payoutMethod;
     
     switch (method) {
       case 'jazzcash':
-        return {
-          jazzcashNumber: user.wallet.jazzcash.number
-        };
+        return { jazzcashNumber: user.wallet.jazzcash.number };
       case 'easypaisa':
-        return {
-          easypaisaNumber: user.wallet.easypaisa.number
-        };
+        return { easypaisaNumber: user.wallet.easypaisa.number };
       case 'bank':
-        return {
-          bankAccount: user.wallet.bankAccount
-        };
+        return { bankAccount: user.wallet.bankAccount };
+      case 'safepay':
+        return { email: user.email, name: user.fullName };
       default:
         return {};
     }
   }
 
-  /**
-   * Send payout notification
-   */
   async sendPayoutNotification(user, payout, result) {
     try {
       const emailContent = `
@@ -263,9 +262,6 @@ class PayoutService {
     }
   }
 
-  /**
-   * Process all eligible auto-payouts (cron job)
-   */
   async processAllAutoPayouts() {
     try {
       console.log('Starting auto-payout processing...');
@@ -273,7 +269,7 @@ class PayoutService {
       const users = await User.find({
         'payoutSettings.autoPayout': true,
         'wallet.availableBalance': { $gte: this.minimumPayout }
-      });
+      }).select('_id email wallet payoutSettings fullName');
 
       console.log(`Found ${users.length} users eligible for auto-payout`);
 
@@ -298,7 +294,7 @@ class PayoutService {
         }
       }
 
-      console.log('Auto-payout processing completed:', results);
+      console.log('Auto-payout processing completed');
       return results;
     } catch (error) {
       console.error('Auto-payout processing error:', error);

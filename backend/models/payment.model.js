@@ -51,10 +51,7 @@ const paymentSchema = new mongoose.Schema(
       default: "PENDING",
     },
     
-    jazzcashResponse: {
-      type: Object,
-      default: {},
-    },
+
     
     // Earnings Status
     earningsStatus: {
@@ -68,6 +65,16 @@ const paymentSchema = new mongoose.Schema(
       ref: "Payout",
     },
     
+    tracker: {
+      type: String,
+      sparse: true
+    },
+    
+    safepayResponse: {
+      type: Object,
+      default: {},
+    },
+
     metadata: {
       ipAddress: String,
       userAgent: String,
@@ -118,4 +125,4 @@ paymentSchema.methods.distributeEarnings = async function() {
 };
 
 const Payment = mongoose.model("Payment", paymentSchema);
-module.exports = Payment;
+module.exports = Payment; 

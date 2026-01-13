@@ -5,7 +5,7 @@ const Payment = require('../models/payment.model');
 const User = require('../models/user.model');
 const AppError = require('../utils/appError');
 
-// Create purchase (now integrated with payment system)
+// In createPurchase function, update payment method validation:
 const createPurchase = async (req, res, next) => {
   try {
     const { bookId, judgmentId, type, format, paymentMethod } = req.body;
@@ -14,60 +14,12 @@ const createPurchase = async (req, res, next) => {
       return next(new AppError('Please provide all required fields', 400));
     }
 
-    let item, seller, sellerType, amount;
-
-    // Get item details and calculate amount
-    if (type === 'book' && bookId) {
-      item = await Book.findById(bookId).populate('uploader');
-      if (!item) {
-        return next(new AppError('Book not found', 404));
-      }
-      
-      if (item.status !== 'approved') {
-        return next(new AppError('This book is not available for purchase', 400));
-      }
-      
-      seller = item.uploader;
-      sellerType = item.uploaderType || 'admin';
-      amount = item.discountedPrice || item.price;
-      
-    } else if (type === 'judgment' && judgmentId) {
-      item = await Judgment.findById(judgmentId);
-      if (!item) {
-        return next(new AppError('Judgment not found', 404));
-      }
-      
-      seller = item.uploader;
-      sellerType = 'superadmin'; 
-      amount = item.price;
-    } else {
-      return next(new AppError('Invalid purchase type', 400));
+    // Update payment method validation to include safepay
+    if (!['safepay', 'jazzcash', 'easypaisa', 'bank'].includes(paymentMethod)) {
+      return next(new AppError('Invalid payment method', 400));
     }
 
-    // Check if already purchased
-    const existingPurchase = await Purchase.findOne({
-      user: req.user.id,
-      ...(type === 'book' ? { book: bookId } : { judgment: judgmentId }),
-      paymentStatus: 'completed'
-    });
-
-    if (existingPurchase) {
-      return next(new AppError('You have already purchased this item', 400));
-    }
-
-    // Calculate commission
-    const SUPERADMIN_COMMISSION = parseInt(process.env.SUPERADMIN_COMMISSION_PERCENTAGE) || 10;
-    let sellerAmount = amount;
-    let superadminAmount = 0;
     
-    if (sellerType === "admin") {
-      superadminAmount = (amount * SUPERADMIN_COMMISSION) / 100;
-      sellerAmount = amount - superadminAmount;
-    } else if (sellerType === "superadmin") {
-      superadminAmount = amount;
-      sellerAmount = 0;
-    }
-
     const purchase = await Purchase.create({
       user: req.user.id,
       book: bookId,
@@ -93,6 +45,44 @@ const createPurchase = async (req, res, next) => {
         timestamp: new Date(),
       },
     });
+
+    // If payment method is safepay, create payment and return redirect URL
+    if (paymentMethod === 'safepay') {
+      const { createPaymentWithCommission } = require('../services/payment.service');
+      
+      let itemId, sellerId;
+      if (type === 'book') {
+        itemId = bookId;
+        sellerId = item.uploader._id;
+      } else {
+        itemId = judgmentId;
+        sellerId = item.uploader;
+      }
+      
+      const paymentData = await createPaymentWithCommission(
+        amount,
+        req.user.id,
+        itemId,
+        sellerId,
+        sellerType
+      );
+      
+      // Update purchase with safepay details
+      purchase.tracker = paymentData.tracker;
+      purchase.safepayTracker = paymentData.tracker;
+      await purchase.save();
+      
+      return res.status(201).json({
+        success: true,
+        message: 'Purchase initiated successfully',
+        data: { 
+          purchase,
+          nextStep: 'Proceed to payment',
+          paymentUrl: paymentData.paymentUrl,
+          tracker: paymentData.tracker
+        },
+      });
+    }
 
     res.status(201).json({
       success: true,

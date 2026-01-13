@@ -274,6 +274,7 @@ export const BookService = {
 
   // ================== 👩‍💼 ADMIN ROUTES ==================
   uploadBook: async (formData: FormData): Promise<ApiResponse<{ book: Book }>> => {
+    console.log("Uploading book with formData:", formData); 
     const response = await api.post<ApiResponse<{ book: Book }>>('/book/upload-book', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });

@@ -27,7 +27,7 @@ const uploadBook = async (req, res, next) => {
       textFormat = 'plain',
       textLanguage = 'English'
     } = req.body;
-    
+    console.log("The req user is", req.user)
     // Check if book with same title already exists
     const existingBook = await Book.findOne({ title });
     if (existingBook) {
@@ -38,7 +38,7 @@ const uploadBook = async (req, res, next) => {
     const parsedTags = tags ? tags.split(',').map(tag => tag.trim()) : [];
 
     // Handle cover images
-    const coverImages = req.files?.coverImages ? 
+    const coverImages = req.files?.coverImages ?
       req.files.coverImages.map(file => `/uploads/covers/${file.filename}`) : [];
 
     if (coverImages.length === 0) {
@@ -81,7 +81,7 @@ const uploadBook = async (req, res, next) => {
       uploader: req.user.id,
       uploaderType: req.user.role === 'superadmin' ? 'superadmin' : 'admin'
     });
-
+    console.log("therole", role)
     // Calculate text statistics
     await book.calculateTextStats();
 
@@ -113,12 +113,12 @@ const getAllBooks = async (req, res, next) => {
     } = req.query;
 
     const query = { status };
-    
+
     // Filtering
     if (category) query.category = category;
     if (author) query.author = { $regex: author, $options: 'i' };
     if (language) query.language = language;
-    
+
     // Price range filtering
     if (minPrice || maxPrice) {
       query.$or = [
@@ -134,7 +134,7 @@ const getAllBooks = async (req, res, next) => {
         query.$or[1].price.$lte = parseFloat(maxPrice);
       }
     }
-    
+
     // Search
     if (search) {
       query.$or = [
@@ -213,8 +213,8 @@ const getBookById = async (req, res, next) => {
     }
 
     // Only return approved books to public, or user's own books
-    if (book.status !== 'approved' && 
-        (!req.user || book.uploader._id.toString() !== req.user.id)) {
+    if (book.status !== 'approved' &&
+      (!req.user || book.uploader._id.toString() !== req.user.id)) {
       return next(new AppError('Book not found', 404));
     }
 
@@ -290,13 +290,13 @@ const getPendingBooks = async (req, res, next) => {
 const updateBook = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body; 
+    const updateData = req.body;
 
 
-console.log("The body is", updateData )
-    
-    
-    
+    console.log("The body is", updateData)
+
+
+
     const existingBook = await Book.findOne({
       _id: id,
       uploader: req.user.id,
@@ -372,7 +372,7 @@ const deleteBook = async (req, res, next) => {
   try {
     // Find the book first to check ownership
     const existingBook = await Book.findById(req.params.id);
-    
+
     if (!existingBook) {
       return next(new AppError('Book not found', 404));
     }
@@ -435,7 +435,7 @@ const approveBook = async (req, res, next) => {
 const rejectBook = async (req, res, next) => {
   try {
     const { reason } = req.body;
-    
+
     if (!reason) {
       return next(new AppError('Rejection reason is required', 400));
     }
@@ -504,9 +504,9 @@ const getBookPreview = async (req, res, next) => {
 const purchaseBook = async (req, res, next) => {
   try {
     const { format = 'pdf', paymentMethod } = req.body;
-    
+
     const book = await Book.findById(req.params.id);
-    
+
     if (!book) {
       return next(new AppError('Book not found', 404));
     }
@@ -565,9 +565,9 @@ const purchaseBook = async (req, res, next) => {
 const readFullBook = async (req, res, next) => {
   try {
     const { format = 'text' } = req.query;
-    
+
     const book = await Book.findById(req.params.id);
-    
+
     if (!book) {
       return next(new AppError('Book not found', 404));
     }
@@ -684,13 +684,13 @@ const searchBooks = async (req, res, next) => {
     const { q, category, author, minPrice, maxPrice, page = 1, limit = 10 } = req.query;
 
     const query = { status: 'approved' };
-    
+
     if (q) {
       query.$text = { $search: q };
     }
     if (category) query.category = category;
     if (author) query.author = { $regex: author, $options: 'i' };
-    
+
     if (minPrice || maxPrice) {
       query.$or = [
         { discountedPrice: {} },
@@ -734,9 +734,9 @@ const getBooksByCategory = async (req, res, next) => {
     const { category } = req.params;
     const { page = 1, limit = 10 } = req.query;
 
-    const books = await Book.find({ 
-      category, 
-      status: 'approved' 
+    const books = await Book.find({
+      category,
+      status: 'approved'
     })
       .select('-textContent')
       .limit(limit * 1)
@@ -764,9 +764,9 @@ const getFeaturedBooks = async (req, res, next) => {
   try {
     const { limit = 10 } = req.query;
 
-    const books = await Book.find({ 
-      status: 'approved', 
-      featured: true 
+    const books = await Book.find({
+      status: 'approved',
+      featured: true
     })
       .select('-textContent')
       .limit(parseInt(limit))
@@ -786,9 +786,9 @@ const getBestsellerBooks = async (req, res, next) => {
   try {
     const { limit = 10 } = req.query;
 
-    const books = await Book.find({ 
-      status: 'approved', 
-      bestseller: true 
+    const books = await Book.find({
+      status: 'approved',
+      bestseller: true
     })
       .select('-textContent')
       .sort({ salesCount: -1 })
@@ -808,9 +808,9 @@ const getNewReleases = async (req, res, next) => {
   try {
     const { limit = 10 } = req.query;
 
-    const books = await Book.find({ 
-      status: 'approved', 
-      newRelease: true 
+    const books = await Book.find({
+      status: 'approved',
+      newRelease: true
     })
       .select('-textContent')
       .limit(parseInt(limit))
@@ -849,7 +849,7 @@ const incrementViewCount = async (req, res, next) => {
 const updateBookRating = async (req, res, next) => {
   try {
     const { rating } = req.body;
-    
+
     if (!rating || rating < 1 || rating > 5) {
       return next(new AppError('Please provide a valid rating between 1 and 5', 400));
     }
@@ -876,9 +876,9 @@ const updateBookRating = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Rating updated successfully',
-      data: { 
+      data: {
         averageRating: book.averageRating,
-        reviewCount: book.reviewCount 
+        reviewCount: book.reviewCount
       },
     });
   } catch (error) {
@@ -890,7 +890,7 @@ const updateBookRating = async (req, res, next) => {
 const getAllCategories = async (req, res) => {
   try {
     const categories = await Book.distinct("category", { status: "approved" });
-    
+
     res.json({
       success: true,
       data: categories,

@@ -3,14 +3,12 @@ const Book = require("../models/book.model.js");
 const User = require("../models/user.model.js");
 const Purchase = require("../models/purchases.model.js");
 const Commission = require("../models/commission.model.js");
-const { createPaymentWithCommission, verifyJazzCashResponse } = require("../services/payment.service.js");
-const PayoutService = require("../services/payout.service.js");
+const { createPaymentWithCommission, verifyPayment, SafepayService } = require("../services/payment.service.js");
 
 const createPayment = async (req, res) => {
   try {
     const { bookId } = req.body;
     
-    // Check authentication
     if (!req.user || !req.user.id) {
       return res.status(401).json({ 
         success: false, 
@@ -20,7 +18,6 @@ const createPayment = async (req, res) => {
     
     const userId = req.user.id;
     
-    // Get book details
     const book = await Book.findById(bookId).populate('uploader');
     
     if (!book) {
@@ -37,7 +34,6 @@ const createPayment = async (req, res) => {
       });
     }
     
-    // Check if already purchased
     const existingPurchase = await Purchase.findOne({
       user: userId,
       book: bookId,
@@ -72,20 +68,29 @@ const createPayment = async (req, res) => {
       sellerType: sellerType,
       commission: paymentData.commission,
       transactionRef: paymentData.transactionRef,
+      tracker: paymentData.tracker,
       status: "PENDING",
-      jazzcashResponse: {},
+      safepayResponse: {
+        tracker: paymentData.tracker,
+        paymentUrl: paymentData.paymentUrl
+      },
       metadata: {
         bookTitle: book.title,
-        sellerName: book.uploader.fullName
+        sellerName: book.uploader.fullName,
+        ...paymentData.metadata
       }
     });
     
     return res.status(200).json({
       success: true,
       message: "Payment initiated successfully",
-      payment: paymentData,
+      payment: {
+        paymentUrl: paymentData.paymentUrl,
+        tracker: paymentData.tracker,
+        transactionRef: paymentData.transactionRef
+      },
       paymentId: paymentRecord._id,
-      redirectUrl: paymentData.paymentURL,
+      redirectUrl: paymentData.paymentUrl,
       transactionRef: paymentData.transactionRef,
       commissionBreakdown: paymentData.commission
     });
@@ -98,62 +103,81 @@ const createPayment = async (req, res) => {
   }
 };
 
-const jazzCashReturn = async (req, res) => {
+// Safepay return URL handler
+const safepayReturn = async (req, res) => {
   try {
-    console.log("JazzCash Callback Received:", req.body);
-    const responseData = req.body;
-    const transactionRef = responseData.pp_TxnRefNo;
+    const { tracker, status, cancel } = req.query;
     
-    if (!transactionRef) {
+    if (cancel === 'true') {
       return res.status(400).send(`
+        <!DOCTYPE html>
         <html>
-          <body>
-            <h1>Invalid Payment Response</h1>
-            <p>No transaction reference found</p>
-          </body>
+        <head>
+          <title>Payment Cancelled</title>
+          <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
+            .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .error { color: #dc3545; font-size: 24px; margin-bottom: 20px; }
+            .btn { display: inline-block; padding: 10px 30px; background: #6c757d; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="error">❌ Payment Cancelled</div>
+            <p>The payment was cancelled. You can try again.</p>
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3001'}/books" class="btn">Back to Books</a>
+          </div>
+        </body>
         </html>
       `);
     }
     
-    // Verify JazzCash response
-    console.log("Verifying JazzCash response for transaction:", responseData);
-    const isValid = verifyJazzCashResponse(responseData);
-    if (!isValid) {
-      console.error("Invalid JazzCash response signature");
+    if (!tracker) {
       return res.status(400).send(`
+        <!DOCTYPE html>
         <html>
-          <body>
-            <h1>Invalid Payment Signature</h1>
-            <p>Payment verification failed</p>
-          </body>
+        <body>
+          <h1>Invalid Payment Response</h1>
+          <p>No tracker found</p>
+        </body>
         </html>
       `);
     }
+    
+    // Verify payment status with Safepay
+    const verification = await verifyPayment(tracker);
+    console.log("Safepay verification response:", verification);
     
     // Find payment record
-    const payment = await Payment.findOne({ transactionRef })
+    const payment = await Payment.findOne({ tracker })
       .populate('book')
       .populate('seller')
       .populate('user');
-    console.log("Payment record found:", transactionRef);
+      
     if (!payment) {
-      console.error("Payment not found for transaction:", transactionRef);
+      console.error("Payment not found for tracker:", tracker);
       return res.status(404).send(`
+        <!DOCTYPE html>
         <html>
-          <body>
-            <h1>Payment Not Found</h1>
-            <p>Transaction ID: ${transactionRef}</p>
-          </body>
+        <body>
+          <h1>Payment Not Found</h1>
+          <p>Tracker: ${tracker}</p>
+        </body>
         </html>
       `);
     }
     
-    // Update payment status
-    const status = responseData.pp_ResponseCode === "000" ? "SUCCESS" : "FAILED";
-    payment.status = status;
-    payment.jazzcashResponse = responseData;
+    const isSuccess = verification?.data?.state === 'paid' || 
+                      verification?.data?.payment?.state === 'paid' ||
+                      status === 'paid';
     
-    if (status === "SUCCESS") {
+    if (isSuccess) {
+      payment.status = "SUCCESS";
+      payment.safepayResponse = {
+        ...payment.safepayResponse,
+        verification: verification.data
+      };
+      
       // Create purchase record
       const purchase = await Purchase.create({
         user: payment.user._id,
@@ -164,12 +188,14 @@ const jazzCashReturn = async (req, res) => {
         seller: payment.seller._id,
         sellerType: payment.sellerType,
         commission: payment.commission,
-        paymentMethod: 'jazzcash',
+        paymentMethod: 'safepay',
         paymentStatus: 'completed',
-        transactionId: transactionRef,
+        transactionId: payment.transactionRef,
+        safepayTracker: tracker,
         paymentDetails: {
-          method: 'jazzcash',
-          transactionId: transactionRef,
+          method: 'safepay',
+          transactionId: payment.transactionRef,
+          tracker: tracker,
           amount: payment.amount,
           currency: 'PKR',
           status: 'completed',
@@ -192,20 +218,14 @@ const jazzCashReturn = async (req, res) => {
         processedAt: new Date()
       });
       
-      // Distribute earnings using your existing function
+      // Distribute earnings
       const { distributePurchaseEarnings } = require('./purchase.controller');
       await distributePurchaseEarnings(purchase);
       
-      // Update payment earnings status
       payment.earningsStatus = 'PROCESSED';
       
-      console.log(`Payment ${transactionRef} completed. Commission distributed.`);
-    }
-    
-    await payment.save();
-    
-    // Return appropriate HTML response
-    if (status === "SUCCESS") {
+      console.log(`Payment ${tracker} completed. Commission distributed.`);
+      
       const successHtml = `
         <!DOCTYPE html>
         <html>
@@ -223,25 +243,35 @@ const jazzCashReturn = async (req, res) => {
           <div class="container">
             <div class="success">✅ Payment Successful!</div>
             <div class="details">
-              <p><strong>Transaction ID:</strong> ${transactionRef}</p>
+              <p><strong>Transaction ID:</strong> ${payment.transactionRef}</p>
+              <p><strong>Tracker:</strong> ${tracker}</p>
               <p><strong>Amount:</strong> PKR ${payment.amount}</p>
               <p><strong>Book:</strong> ${payment.book?.title || 'Book'}</p>
               <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
             </div>
             <p>Your book is now available for download.</p>
             <p>You will be redirected to your dashboard in 5 seconds...</p>
-            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard/books" class="btn">Go to Dashboard</a>
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3001'}/dashboard/books" class="btn">Go to Dashboard</a>
           </div>
           <script>
             setTimeout(() => {
-              window.location.href = '${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard/books';
+              window.location.href = '${process.env.FRONTEND_URL || 'http://localhost:3001'}/dashboard/books';
             }, 5000);
           </script>
         </body>
         </html>
       `;
+      
+      await payment.save();
       return res.send(successHtml);
     } else {
+      payment.status = "FAILED";
+      payment.safepayResponse = {
+        ...payment.safepayResponse,
+        verification: verification.data
+      };
+      await payment.save();
+      
       const failedHtml = `
         <!DOCTYPE html>
         <html>
@@ -251,33 +281,23 @@ const jazzCashReturn = async (req, res) => {
             body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
             .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
             .error { color: #dc3545; font-size: 24px; margin-bottom: 20px; }
-            .details { text-align: left; background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; }
             .btn { display: inline-block; padding: 10px 30px; background: #6c757d; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="error">❌ Payment Failed</div>
-            <div class="details">
-              <p><strong>Transaction ID:</strong> ${transactionRef}</p>
-              <p><strong>Response Code:</strong> ${responseData.pp_ResponseCode}</p>
-              <p><strong>Message:</strong> ${responseData.pp_ResponseMessage || 'Payment was not successful'}</p>
-            </div>
-            <p>Please try again or contact support if the problem persists.</p>
-            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/books/${payment.book?._id || ''}" class="btn">Try Again</a>
+            <p>The payment was not successful. Please try again.</p>
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3001'}/books/${payment.book?._id || ''}" class="btn">Try Again</a>
           </div>
-          <script>
-            setTimeout(() => {
-              window.location.href = '${process.env.FRONTEND_URL || 'http://localhost:3000'}/books';
-            }, 5000);
-          </script>
         </body>
         </html>
       `;
       return res.send(failedHtml);
     }
+    
   } catch (error) {
-    console.error("Callback Error:", error);
+    console.error("Safepay Return Error:", error);
     const errorHtml = `
       <!DOCTYPE html>
       <html>
@@ -296,7 +316,7 @@ const jazzCashReturn = async (req, res) => {
         </div>
         <script>
           setTimeout(() => {
-            window.location.href = '${process.env.FRONTEND_URL || 'http://localhost:3000'}';
+            window.location.href = '${process.env.FRONTEND_URL || 'http://localhost:3001'}';
           }, 5000);
         </script>
       </body>
@@ -306,7 +326,98 @@ const jazzCashReturn = async (req, res) => {
   }
 };
 
-const verifyPayment = async (req, res) => {
+// Safepay webhook handler
+const safepayWebhook = async (req, res) => {
+  try {
+    console.log("Safepay Webhook Received:", req.body);
+    
+    const signature = req.headers["x-sfpy-signature"];
+    const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
+    
+    // Verify webhook signature
+    const isValid = SafepayService.verifyWebhookSignature(rawBody, signature);
+    
+    if (!isValid) {
+      console.error("Invalid Safepay webhook signature");
+      return res.status(401).json({ error: "Invalid signature" });
+    }
+    
+    const event = SafepayService.parseWebhookEvent(req.body);
+    
+    if (event.status === 'paid') {
+      // Find payment by tracker
+      const payment = await Payment.findOne({ tracker: event.tracker })
+        .populate('book')
+        .populate('seller')
+        .populate('user');
+        
+      if (payment && payment.status !== "SUCCESS") {
+        // Update payment status
+        payment.status = "SUCCESS";
+        payment.safepayResponse = {
+          ...payment.safepayResponse,
+          webhook: event
+        };
+        await payment.save();
+        
+        // Create purchase if not exists
+        const existingPurchase = await Purchase.findOne({
+          user: payment.user._id,
+          book: payment.book._id,
+          paymentStatus: 'completed'
+        });
+        
+        if (!existingPurchase) {
+          const purchase = await Purchase.create({
+            user: payment.user._id,
+            book: payment.book._id,
+            type: 'book',
+            format: 'pdf',
+            amount: payment.amount,
+            seller: payment.seller._id,
+            sellerType: payment.sellerType,
+            commission: payment.commission,
+            paymentMethod: 'safepay',
+            paymentStatus: 'completed',
+            transactionId: payment.transactionRef,
+            safepayTracker: event.tracker,
+            paymentDetails: {
+              method: 'safepay',
+              transactionId: payment.transactionRef,
+              tracker: event.tracker,
+              amount: payment.amount,
+              currency: 'PKR',
+              status: 'completed',
+              timestamp: new Date()
+            }
+          });
+          
+          // Distribute earnings async
+          setTimeout(async () => {
+            try {
+              const { distributePurchaseEarnings } = require('./purchase.controller');
+              await distributePurchaseEarnings(purchase);
+              payment.earningsStatus = 'PROCESSED';
+              await payment.save();
+            } catch (error) {
+              console.error("Webhook earnings distribution error:", error);
+            }
+          }, 0);
+        }
+        
+        console.log(`Webhook: Payment ${event.tracker} processed`);
+      }
+    }
+    
+    // Always return 200 to Safepay
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error("Webhook Error:", error);
+    res.status(200).json({ received: true });
+  }
+};
+
+const verifyPaymentStatus = async (req, res) => {
   try {
     const { paymentId } = req.params;
     
@@ -336,6 +447,7 @@ const verifyPayment = async (req, res) => {
         status: payment.status,
         amount: payment.amount,
         transactionRef: payment.transactionRef,
+        tracker: payment.tracker,
         book: payment.book,
         seller: payment.seller,
         commission: payment.commission,
@@ -352,45 +464,9 @@ const verifyPayment = async (req, res) => {
   }
 };
 
-const jazzCashWebhook = async (req, res) => {
-  try {
-    console.log("JazzCash Webhook Received:", req.body);
-    const responseData = req.body;
-    const transactionRef = responseData.pp_TxnRefNo;
-    
-    if (transactionRef && responseData.pp_ResponseCode === "000") {
-      const payment = await Payment.findOne({ transactionRef });
-      
-      if (payment && payment.status !== "SUCCESS") {
-        // Update payment status
-        payment.status = "SUCCESS";
-        payment.jazzcashResponse = responseData;
-        await payment.save();
-        
-        // Distribute earnings (async - don't wait)
-        setTimeout(async () => {
-          try {
-            await payment.distributeEarnings();
-          } catch (error) {
-            console.error("Webhook earnings distribution error:", error);
-          }
-        }, 0);
-        
-        console.log(`Webhook: Payment ${transactionRef} processed`);
-      }
-    }
-    
-    // Always return 200 to JazzCash
-    res.status(200).json({ received: true });
-  } catch (error) {
-    console.error("Webhook Error:", error);
-    res.status(200).json({ received: true });
-  }
-};
-
 module.exports = { 
   createPayment, 
-  jazzCashReturn, 
-  verifyPayment,
-  jazzCashWebhook
+  safepayReturn, 
+  safepayWebhook,
+  verifyPayment: verifyPaymentStatus
 };

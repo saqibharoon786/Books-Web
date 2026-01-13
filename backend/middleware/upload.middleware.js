@@ -21,7 +21,7 @@ ensureDirectoryExists(baseUploadDir);
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     let folder = 'uploads/';
-    
+
     // ✅ CHANGED: coverImage to coverImages (plural)
     if (file.fieldname === 'coverImages') folder += 'covers/';
     else if (file.fieldname === 'pdfFile') folder += 'pdfs/';
@@ -29,12 +29,12 @@ const storage = multer.diskStorage({
     else if (file.fieldname === 'frontImage' || file.fieldname === 'backImage') folder += 'cnic/';
     else if (file.fieldname === 'image') folder += 'profiles/';
     else folder += 'others/';
-    
+
     const fullPath = path.join(__dirname, '../', folder);
-    
+
     // Ensure the specific directory exists
     ensureDirectoryExists(fullPath);
-    
+
     cb(null, folder);
   },
   filename: (req, file, cb) => {
@@ -47,8 +47,8 @@ const storage = multer.diskStorage({
 const fileFilter = (req, file, cb) => {
   // Check file types
   // ✅ CHANGED: coverImage to coverImages (plural)
-  if (file.fieldname === 'coverImages' || file.fieldname === 'image' || 
-      file.fieldname === 'frontImage' || file.fieldname === 'backImage') {
+  if (file.fieldname === 'coverImages' || file.fieldname === 'image' ||
+    file.fieldname === 'frontImage' || file.fieldname === 'backImage') {
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -101,7 +101,7 @@ const convertToWebP = async (req, res, next) => {
         if (fs.existsSync(file.path)) {
           fs.unlinkSync(file.path);
         }
-        
+
         // Update file object with WebP info
         file.filename = newFilename;
         file.path = newPath;
@@ -112,13 +112,13 @@ const convertToWebP = async (req, res, next) => {
 
     // Process single file
     if (req.file) await processFile(req.file);
-    
+
     // Process multiple files
     if (req.files) {
-      const files = Array.isArray(req.files) 
-        ? req.files 
+      const files = Array.isArray(req.files)
+        ? req.files
         : Object.values(req.files).flat();
-      
+
       for (const file of files) {
         await processFile(file);
       }
@@ -164,5 +164,5 @@ module.exports = {
   uploadMultiple,
   uploadCNIC,
   uploadProfile,
-  convertToWebP 
+  convertToWebP
 };
