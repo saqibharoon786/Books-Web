@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { BookService, Book } from "@/services/bookService";
+import { BookService, Book } from "@/services/bookService.ts";
 import {
   Check,
   X,
@@ -82,7 +82,7 @@ const BookImage = ({ src, alt, className = "", fallbackSrc = "/placeholder-book.
         crossOrigin="anonymous"
         loading="lazy"
       />
-      
+
       {hasError && (
         <div className="absolute inset-0 flex items-center justify-center bg-[#1a1f2e] rounded-lg">
           <ImageIcon className="h-6 w-6 text-[#4a5568]" />
@@ -113,16 +113,16 @@ const BookSkeletonCard = () => (
 );
 
 // Stat Card Component
-const StatCard = ({ 
-  title, 
-  value, 
-  icon, 
+const StatCard = ({
+  title,
+  value,
+  icon,
   description,
-  trend 
-}: { 
-  title: string; 
-  value: string | number; 
-  icon: React.ReactNode; 
+  trend
+}: {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
   description?: string;
   trend?: string;
 }) => (
@@ -174,8 +174,8 @@ const StatusBadge = ({ status }: { status: string }) => {
   const IconComponent = config.icon;
 
   return (
-    <Badge 
-      variant={config.variant} 
+    <Badge
+      variant={config.variant}
       className={`gap-1.5 border ${config.className}`}
     >
       <IconComponent className="h-3 w-3" />
@@ -246,8 +246,8 @@ const ApproveBooks = () => {
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
   const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
-  const [rejectDialog, setRejectDialog] = useState<RejectDialogState>({ 
-    open: false 
+  const [rejectDialog, setRejectDialog] = useState<RejectDialogState>({
+    open: false
   });
   const [rejectReason, setRejectReason] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -260,9 +260,9 @@ const ApproveBooks = () => {
   // Filter books based on search
   const filteredBooks = useMemo(() => {
     if (!searchQuery.trim()) return books;
-    
+
     const query = searchQuery.toLowerCase();
-    return books.filter(book => 
+    return books.filter(book =>
       book.title?.toLowerCase().includes(query) ||
       book.author?.toLowerCase().includes(query) ||
       book.category?.toLowerCase().includes(query) ||
@@ -275,14 +275,14 @@ const ApproveBooks = () => {
     try {
       setLoading(true);
       const response = await BookService.getPendingBooks(1, 50);
-      
+
       if (response.success && response.data?.books) {
         const booksWithImages = response.data.books.map(book => ({
           ...book,
           // Ensure coverImages is always an array
           coverImages: Array.isArray(book.coverImages) ? book.coverImages : [],
         }));
-        
+
         setBooks(booksWithImages);
         setStats(prev => ({
           ...prev,
@@ -317,9 +317,9 @@ const ApproveBooks = () => {
     try {
       const response = await BookService.approveBook(bookId);
       if (response.success) {
-        toast({ 
-          title: "Book Approved", 
-          description: "Book is now visible to users." 
+        toast({
+          title: "Book Approved",
+          description: "Book is now visible to users."
         });
         setBooks(prev => prev.filter(book => book._id !== bookId));
         setStats(prev => ({ ...prev, pending: prev.pending - 1 }));
@@ -327,10 +327,10 @@ const ApproveBooks = () => {
         throw new Error(response.message || "Failed to approve book");
       }
     } catch (err) {
-      toast({ 
-        title: "Approval Failed", 
+      toast({
+        title: "Approval Failed",
         description: err instanceof Error ? err.message : "Failed to approve book",
-        variant: "destructive" 
+        variant: "destructive"
       });
     } finally {
       setProcessing(null);
@@ -343,10 +343,10 @@ const ApproveBooks = () => {
     if (!bookId) return;
 
     if (!rejectReason.trim()) {
-      toast({ 
-        title: "Reason Required", 
+      toast({
+        title: "Reason Required",
         description: "Please provide a reason for rejection.",
-        variant: "destructive" 
+        variant: "destructive"
       });
       return;
     }
@@ -355,9 +355,9 @@ const ApproveBooks = () => {
     try {
       const response = await BookService.rejectBook(bookId, rejectReason.trim());
       if (response.success) {
-        toast({ 
-          title: "Book Rejected", 
-          description: "Book has been rejected successfully." 
+        toast({
+          title: "Book Rejected",
+          description: "Book has been rejected successfully."
         });
         setBooks(prev => prev.filter(book => book._id !== bookId));
         setStats(prev => ({ ...prev, pending: prev.pending - 1 }));
@@ -365,10 +365,10 @@ const ApproveBooks = () => {
         throw new Error(response.message || "Failed to reject book");
       }
     } catch (err) {
-      toast({ 
-        title: "Rejection Failed", 
+      toast({
+        title: "Rejection Failed",
         description: err instanceof Error ? err.message : "Failed to reject book",
-        variant: "destructive" 
+        variant: "destructive"
       });
     } finally {
       setProcessing(null);
@@ -411,7 +411,7 @@ const ApproveBooks = () => {
   }
 
   return (
-    <motion.div 
+    <motion.div
       className="space-y-8 min-h-screen bg-[#0f1729] p-6"
       initial="hidden"
       animate="visible"
@@ -429,9 +429,9 @@ const ApproveBooks = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button 
-            onClick={fetchPendingBooks} 
-            variant="outline" 
+          <Button
+            onClick={fetchPendingBooks}
+            variant="outline"
             size="sm"
             disabled={loading}
             className="border-[#2d3748] text-[#cbd5e1] hover:text-white hover:border-[#4a5568] hover:bg-[#1a1f2e]"
@@ -439,8 +439,8 @@ const ApproveBooks = () => {
             <Loader2 className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             className="border-[#2d3748] text-[#cbd5e1] hover:text-white hover:border-[#4a5568] hover:bg-[#1a1f2e]"
           >
@@ -451,7 +451,7 @@ const ApproveBooks = () => {
       </div>
 
       {/* Stats Overview */}
-      <motion.div 
+      <motion.div
         className="grid grid-cols-1 md:grid-cols-3 gap-6"
         variants={motionVariants.container}
       >
@@ -495,7 +495,7 @@ const ApproveBooks = () => {
                   Review book details before approving or rejecting
                 </CardDescription>
               </div>
-              
+
               <div className="flex items-center gap-3">
                 <div className="relative w-64">
                   <Input
@@ -519,15 +519,15 @@ const ApproveBooks = () => {
                 <div className="space-y-2">
                   <h3 className="text-xl font-semibold text-white">All caught up!</h3>
                   <p className="text-[#94a3b8] max-w-sm mx-auto">
-                    {searchQuery 
-                      ? "No books match your search criteria." 
+                    {searchQuery
+                      ? "No books match your search criteria."
                       : "No pending books to review at the moment."
                     }
                   </p>
                 </div>
                 {searchQuery && (
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => setSearchQuery("")}
                     className="border-[#2d3748] text-[#cbd5e1] hover:text-white hover:border-[#4a5568]"
                   >
@@ -536,7 +536,7 @@ const ApproveBooks = () => {
                 )}
               </div>
             ) : (
-              <motion.div 
+              <motion.div
                 className="space-y-4"
                 variants={motionVariants.container}
                 initial="hidden"
@@ -633,7 +633,7 @@ const ApproveBooks = () => {
                                 <Eye className="h-4 w-4 mr-2" />
                                 Details
                               </Button>
-                              
+
                               <Button
                                 size="sm"
                                 onClick={() => {
@@ -700,7 +700,7 @@ const ApproveBooks = () => {
                   className="w-48 h-64 flex-shrink-0"
                   fallbackSrc="/placeholder-book.png"
                 />
-                
+
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div className="space-y-4">
                     <div>
@@ -720,7 +720,7 @@ const ApproveBooks = () => {
                       <p className="mt-1 text-white">{selectedBook.subcategory || "Not specified"}</p>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-4">
                     <div>
                       <label className="font-semibold text-[#94a3b8]">Price</label>
@@ -751,7 +751,7 @@ const ApproveBooks = () => {
                       <p className="mt-2 text-sm leading-relaxed text-[#cbd5e1]">{selectedBook.description}</p>
                     </div>
                   )}
-                  
+
                   {selectedBook.authorBio && (
                     <div>
                       <label className="font-semibold text-[#94a3b8]">Author Bio</label>
@@ -773,7 +773,7 @@ const ApproveBooks = () => {
                       </div>
                     </div>
                   )}
-                  
+
                   {selectedBook.uploader && (
                     <div>
                       <label className="font-semibold text-[#94a3b8]">Uploaded By</label>
@@ -794,15 +794,15 @@ const ApproveBooks = () => {
               )}
             </div>
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setViewOpen(false)}
                 className="border-[#2d3748] text-[#cbd5e1] hover:text-white hover:border-[#4a5568]"
               >
                 Close
               </Button>
               {selectedBook && (
-                <Button 
+                <Button
                   onClick={() => handleApprove(selectedBook._id)}
                   disabled={processing === selectedBook._id}
                   className="bg-[#2d3748] hover:bg-[#4a5568] text-white border-0"
@@ -829,16 +829,16 @@ const ApproveBooks = () => {
               This book will become visible to all users. Are you sure you want to approve it?
             </DialogDescription>
           </DialogHeader>
-          
+
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setConfirmApproveOpen(false)}
               className="border-[#2d3748] text-[#cbd5e1] hover:text-white hover:border-[#4a5568]"
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={() => selectedBook && handleApprove(selectedBook._id)}
               disabled={processing === selectedBook?._id}
               className="bg-[#2d3748] hover:bg-[#4a5568] text-white border-0"
@@ -872,14 +872,14 @@ const ApproveBooks = () => {
           />
 
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setRejectDialog({ open: false })}
               className="border-[#2d3748] text-[#cbd5e1] hover:text-white hover:border-[#4a5568]"
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               variant="destructive"
               onClick={handleReject}
               disabled={processing === rejectDialog.bookId || !rejectReason.trim()}
