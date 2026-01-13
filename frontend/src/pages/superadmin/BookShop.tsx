@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, Eye, CheckCircle, XCircle, Filter, Search, Download, User, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { BookService, Book } from "@/services/bookService";
+import { BookService, Book } from "@/services/bookService.ts";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
@@ -80,19 +80,19 @@ const BookShop = () => {
   const fetchBooks = async () => {
     try {
       setLoading(true);
-      
+
       if (activeTab === "pending") {
         const response = await BookService.getPendingBooks(currentPage, itemsPerPage);
         if (response.success && response.data) {
           setPendingBooks(response.data.books || []);
         }
       } else {
-        const response = await BookService.getAllBooks({ 
+        const response = await BookService.getAllBooks({
           status: statusFilter === "all" ? undefined : statusFilter,
           page: currentPage,
           limit: itemsPerPage
         });
-        
+
         if (response.success && response.data) {
           setBooks(response.data.books || []);
         }
@@ -111,7 +111,7 @@ const BookShop = () => {
 
   // Filter books based on search term
   const getFilteredBooks = () => {
-    let filtered = books.filter(book => 
+    let filtered = books.filter(book =>
       book.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       book.author?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       book.category?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -125,7 +125,7 @@ const BookShop = () => {
   };
 
   const getFilteredPendingBooks = () => {
-    let filtered = pendingBooks.filter(book => 
+    let filtered = pendingBooks.filter(book =>
       book.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       book.author?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       book.category?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -192,14 +192,14 @@ const BookShop = () => {
   const handleApprove = async (book: Book) => {
     try {
       const response = await BookService.approveBook(book._id);
-      
+
       if (response.success) {
         toast({
           title: "Book Approved",
           description: `"${book.title}" has been approved and published`,
           variant: "default",
         });
-        
+
         // Remove from pending list and add to approved list
         setPendingBooks(prev => prev.filter(b => b._id !== book._id));
         if (response.data?.book) {
@@ -226,14 +226,14 @@ const BookShop = () => {
 
     try {
       const response = await BookService.rejectBook(selectedBook._id, rejectionReason);
-      
+
       if (response.success) {
         toast({
           title: "Book Rejected",
           description: `"${selectedBook.title}" has been rejected`,
           variant: "default",
         });
-        
+
         // Remove from pending list
         setPendingBooks(prev => prev.filter(book => book._id !== selectedBook._id));
         setRejectDialogOpen(false);
@@ -255,14 +255,14 @@ const BookShop = () => {
 
     try {
       const response = await BookService.deleteBook(selectedBook._id);
-      
+
       if (response.success) {
         toast({
           title: "Book Deleted",
           description: `"${selectedBook.title}" has been deleted successfully`,
           variant: "default",
         });
-        
+
         // Remove book from local state
         if (activeTab === "pending") {
           setPendingBooks(prev => prev.filter(book => book._id !== selectedBook._id));
@@ -287,7 +287,7 @@ const BookShop = () => {
 
     try {
       const formData = new FormData();
-      
+
       // Append updated fields with proper formatting
       Object.entries(editForm).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
@@ -301,14 +301,14 @@ const BookShop = () => {
       });
 
       const response = await BookService.updateBook(selectedBook._id, formData);
-      
+
       if (response.success && response.data?.book) {
         toast({
           title: "Book Updated",
           description: `"${selectedBook.title}" has been updated successfully`,
           variant: "default",
         });
-        
+
         // Refresh data
         fetchBooks();
         setEditDialogOpen(false);
@@ -330,7 +330,7 @@ const BookShop = () => {
       approved: { variant: "default" as const, label: "Published", className: "bg-green-500/20 text-green-200" },
       rejected: { variant: "destructive" as const, label: "Rejected", className: "bg-red-500/20 text-red-200" }
     };
-    
+
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
     return <Badge className={config.className}>{config.label}</Badge>;
   };
@@ -338,7 +338,7 @@ const BookShop = () => {
   const formatPrice = (book: Book) => {
     const price = book.discountedPrice || book.price;
     const currency = book.currency || "USD";
-    
+
     if (book.discountPercentage && book.discountPercentage > 0) {
       return (
         <div className="flex flex-col">
@@ -354,7 +354,7 @@ const BookShop = () => {
         </div>
       );
     }
-    
+
     return (
       <span className="font-bold text-white">
         {currency} {price}
@@ -447,13 +447,13 @@ const BookShop = () => {
       {/* Tabs for different views */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-white/10 border border-blue-500/30 p-1 rounded-lg">
-          <TabsTrigger 
-            value="all" 
+          <TabsTrigger
+            value="all"
             className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-blue-200 transition-all"
           >
             All Books ({books.length})
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="pending"
             className="data-[state=active]:bg-yellow-600 data-[state=active]:text-white text-blue-200 transition-all"
           >
@@ -500,8 +500,8 @@ const BookShop = () => {
                         {showMyBooksOnly ? "No books found in your collection" : "No books found"}
                       </p>
                       {searchTerm || statusFilter !== "all" || showMyBooksOnly ? (
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           onClick={() => {
                             setSearchTerm("");
                             setStatusFilter("all");
@@ -521,9 +521,9 @@ const BookShop = () => {
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-16 bg-white/10 rounded flex items-center justify-center overflow-hidden border border-blue-500/30">
                             {book.coverImages?.[0] ? (
-                              <img 
-                                src={book.coverImages[0]} 
-                                alt={book.title || "Book cover"} 
+                              <img
+                                src={book.coverImages[0]}
+                                alt={book.title || "Book cover"}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                   e.currentTarget.src = "/placeholder-book.png";
@@ -572,25 +572,25 @@ const BookShop = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => handlePreview(book)}
                             className="border-blue-500/30 text-white hover:bg-white/10"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => handleEdit(book)}
                             className="border-blue-500/30 text-white hover:bg-white/10"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => handleDelete(book)}
                             className="border-blue-500/30 text-white hover:bg-white/10"
                           >
@@ -603,7 +603,7 @@ const BookShop = () => {
                 )}
               </TableBody>
             </Table>
-            
+
             {/* Pagination */}
             {!loading && filteredBooks.length > 0 && (
               <div className="flex items-center justify-between px-4 py-3 border-t border-blue-500/30">
@@ -631,18 +631,17 @@ const BookShop = () => {
                     } else {
                       pageNum = currentPage - 2 + i;
                     }
-                    
+
                     return (
                       <Button
                         key={pageNum}
                         variant={currentPage === pageNum ? "default" : "outline"}
                         size="sm"
                         onClick={() => handlePageChange(pageNum)}
-                        className={`min-w-[40px] ${
-                          currentPage === pageNum 
-                            ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                        className={`min-w-[40px] ${currentPage === pageNum
+                            ? 'bg-blue-600 text-white hover:bg-blue-700'
                             : 'border-blue-500/30 text-white hover:bg-white/10'
-                        }`}
+                          }`}
                       >
                         {pageNum}
                       </Button>
@@ -694,14 +693,14 @@ const BookShop = () => {
                         <CheckCircle className="h-8 w-8 text-blue-400" />
                       </div>
                       <p className="text-blue-200">
-                        {showMyBooksOnly 
-                          ? "No pending books found in your collection" 
+                        {showMyBooksOnly
+                          ? "No pending books found in your collection"
                           : "No pending books for approval"
                         }
                       </p>
                       <p className="text-sm text-blue-300 mt-2">
-                        {showMyBooksOnly 
-                          ? "All your books have been reviewed" 
+                        {showMyBooksOnly
+                          ? "All your books have been reviewed"
                           : "All books have been reviewed"
                         }
                       </p>
@@ -714,9 +713,9 @@ const BookShop = () => {
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-16 bg-white/10 rounded flex items-center justify-center overflow-hidden border border-blue-500/30">
                             {book.coverImages?.[0] ? (
-                              <img 
-                                src={book.coverImages[0]} 
-                                alt={book.title || "Book cover"} 
+                              <img
+                                src={book.coverImages[0]}
+                                alt={book.title || "Book cover"}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                   e.currentTarget.src = "/placeholder-book.png";
@@ -766,24 +765,24 @@ const BookShop = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => handlePreview(book)}
                             className="border-blue-500/30 text-white hover:bg-white/10"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             onClick={() => handleApprove(book)}
                             className="bg-green-600 text-white hover:bg-green-700"
                           >
                             <CheckCircle className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            variant="destructive" 
-                            size="sm" 
+                          <Button
+                            variant="destructive"
+                            size="sm"
                             onClick={() => handleReject(book)}
                             className="bg-red-600 text-white hover:bg-red-700"
                           >
@@ -796,7 +795,7 @@ const BookShop = () => {
                 )}
               </TableBody>
             </Table>
-            
+
             {/* Pagination for pending books */}
             {!loading && filteredPendingBooks.length > 0 && (
               <div className="flex items-center justify-between px-4 py-3 border-t border-blue-500/30">
@@ -824,18 +823,17 @@ const BookShop = () => {
                     } else {
                       pageNum = currentPage - 2 + i;
                     }
-                    
+
                     return (
                       <Button
                         key={pageNum}
                         variant={currentPage === pageNum ? "default" : "outline"}
                         size="sm"
                         onClick={() => handlePageChange(pageNum)}
-                        className={`min-w-[40px] ${
-                          currentPage === pageNum 
-                            ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                        className={`min-w-[40px] ${currentPage === pageNum
+                            ? 'bg-blue-600 text-white hover:bg-blue-700'
                             : 'border-blue-500/30 text-white hover:bg-white/10'
-                        }`}
+                          }`}
                       >
                         {pageNum}
                       </Button>
@@ -931,8 +929,8 @@ const BookShop = () => {
             <Button variant="outline" onClick={() => setRejectDialogOpen(false)} className="border-blue-500/30 text-white hover:bg-white/10">
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={confirmReject}
               disabled={!rejectionReason.trim()}
               className="bg-red-600 text-white hover:bg-red-700"
