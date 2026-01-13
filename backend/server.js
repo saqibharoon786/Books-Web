@@ -1,163 +1,132 @@
+// ====================================================
+//              SERVER.JS – STABLE VERSION
+// ====================================================
+
+// Load environment variables
 require("dotenv").config();
+
+// ===== Global crash handlers (prevent silent Nodemon crash) =====
+process.on("uncaughtException", (err) => {
+  console.error("❌ UNCAUGHT EXCEPTION:", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("❌ UNHANDLED REJECTION:", reason);
+});
+
+// Core imports
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
-const rateLimit = require("express-rate-limit");
-const mongoSanitize = require("express-mongo-sanitize");
-const xss = require("xss-clean");
-const hpp = require("hpp");
 const compression = require("compression");
 const passport = require("passport");
 const session = require("express-session");
 const MongoStore = require("connect-mongo");
 const path = require("path");
-const fs = require("fs");
 
-// Load configurations
-const { PORT, MONGO_URI, SESSION_SECRET, NODE_ENV, FRONTEND_URL } = require("./config/env");
-
-// Database connection
+// Custom routes
+const IndexRouter = require("./routes/index.routes");
+// DB connection
 const connectDB = require("./loaders/connectionDB");
 
-// Logger
-const logger = require("./loaders/logger");
-
-// Middleware
+// Custom error handlers
 const { notFound, errorHandler } = require("./middleware/errorHandler");
 
-// Import routes
-const healthRoutes = require("./health/health.route");
+// ENV Values
+const PORT = process.env.PORT || 5000;
+const SESSION_SECRET = process.env.SESSION_SECRET || "fallbacksecret";
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+const MONGO_URI = process.env.MONGO;
 
+// ===== Validate required env values =====
+if (!MONGO_URI) {
+  console.error("❌ ERROR: MONGO is missing in .env");
+  process.exit(1);
+}
+
+// Create express app
 const app = express();
 
-// Connect to database
-connectDB().catch((err) => {
-  logger.error("❌ MongoDB connection failed:", err);
-  process.exit(1);
-});
-
-// Ensure directories exist
-["uploads", "logs"].forEach((dir) => {
-  if (!fs.existsSync(`./${dir}`)) {
-    fs.mkdirSync(`./${dir}`, { recursive: true });
+// ===== CONNECT DATABASE =====
+(async () => {
+  try {
+    await connectDB();
+    console.log("✅ Database connected successfully");
+  } catch (err) {
+    console.error("❌ MongoDB connection failed:", err);
+    process.exit(1);
   }
-});
+})();
 
-// Security middleware
+// ===== Security Middleware =====
 app.use(helmet());
 
-// Rate limiting (to prevent brute-force attacks)
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
-  message: {
-    status: "error",
-    message: "Too many requests from this IP, please try again later.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use("/api", limiter);
-
-// Enable CORS
+// ===== CORS =====
 app.use(
   cors({
-    origin: FRONTEND_URL || "http://localhost:3000",
+    origin: "*",
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
 
-// Body parsing middleware
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+// ===== Body Parsers =====
+app.use(express.json({ limit: "15mb" }));
+app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
-// Data sanitization against NoSQL injection & XSS
-app.use(mongoSanitize());
-app.use(xss());
-app.use(hpp());
-
-// Compression
+// ===== Compression =====
 app.use(compression());
 
-// Logging
-if (NODE_ENV === "development") {
-  app.use(morgan("dev"));
-} else {
+// ===== Logging =====
+app.use(
+  morgan(process.env.NODE_ENV === "development" ? "dev" : "combined")
+);
+
+// ===== Session Setup (Crash-safe) =====
+try {
   app.use(
-    morgan("combined", {
-      stream: {
-        write: (message) => logger.info(message.trim()),
+    session({
+      secret: SESSION_SECRET,
+      resave: false,
+      saveUninitialized: false,
+      store: MongoStore.create({
+        mongoUrl: MONGO_URI,
+        collectionName: "sessions",
+      }),
+      cookie: {
+        secure: process.env.NODE_ENV === "production",
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
       },
     })
   );
+} catch (err) {
+  console.error("❌ Session setup error:", err);
 }
 
-// ✅ FIXED: Session configuration with MongoDB
-app.use(
-  session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    store: MongoStore.create({
-      mongoUrl: MONGO_URI, // ✅ Correct parameter name
-      collectionName: "sessions",
-    }),
-    cookie: {
-      secure: NODE_ENV === "production", // only secure in production
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    },
-  })
-);
-
-// Passport middleware
+// ===== Passport =====
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Static files (uploads)
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// ===== Static Uploads =====
+app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Routes
-app.use("/api/health", healthRoutes);
-
-// Default root route
-app.get("/", (req, res) => {
-  res.status(200).json({
-    status: "success",
-    message: "📚 Book E-commerce API Server is running",
-    timestamp: new Date().toISOString(),
-    environment: NODE_ENV,
-    documentation: "/api/docs",
-  });
+// ===== Health Check =====
+app.get("/api/health", (req, res) => {
+  res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
-// Error handling middleware
+// ===== Routes =====
+app.use("/api", IndexRouter);
+
+// ===== Error Handling (last middleware) =====
 app.use(notFound);
 app.use(errorHandler);
 
-// Start server
+// ===== Start Server =====
 const server = app.listen(PORT, () => {
-  logger.info(`🚀 Server running in ${NODE_ENV} mode on port ${PORT}`);
-  logger.info(`📍 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
 
-// Graceful shutdown handlers
-process.on("unhandledRejection", (err) => {
-  logger.error("💥 UNHANDLED REJECTION! Shutting down...");
-  logger.error(err);
-  server.close(() => process.exit(1));
-});
-
-process.on("SIGTERM", () => {
-  logger.info("👋 SIGTERM RECEIVED. Shutting down gracefully...");
-  server.close(() => {
-    logger.info("💥 Process terminated!");
-    process.exit(0);
-  });
-});
-
+// Export for testing
 module.exports = app;

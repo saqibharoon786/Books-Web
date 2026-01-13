@@ -1,23 +1,24 @@
+// App.tsx
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
-import ProtectedRoute from "./components/ProtectedRoute";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import Auth from "./pages/Auth";
-import AdminLayout from "./layouts/AdminLayout";
-import Dashboard from "./pages/admin/Dashboard";
-import UploadBook from "./pages/admin/UploadBook";
-import BookShop from "./pages/admin/BookShop";
-import BookList from "./pages/admin/BookList";
-import ProfileSettings from "./pages/admin/ProfileSettings";
-import ApproveBooks from "./pages/admin/ApproveBooks";
-import BookDetail from "./pages/BookDetail";
+import PublicRoutes from "./routes/PublicRoutes";
+import AdminRoutes from "./routes/AdminRoutes";
+import SuperAdminRoutes from "./routes/SuperAdminRoutes";
+import Auth from "@/pages/Auth";
 
-const queryClient = new QueryClient();
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -26,27 +27,16 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          {/* ✅ Centralized routing directly here */}
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/book/:id" element={<BookDetail />} />
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <AdminLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="upload" element={<UploadBook />} />
-              <Route path="shop" element={<BookShop />} />
-              <Route path="books" element={<BookList />} />
-              <Route path="profile" element={<ProfileSettings />} />
-              <Route path="approve" element={<ApproveBooks />} />
-            </Route>
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
+            {/* Public */}
+            <Route path="/*" element={<PublicRoutes />} />
+<Route path="/auth" element={<Auth />} />
+            {/* Admin */}
+            <Route path="/admin/*" element={<AdminRoutes />} />
+
+            {/* Super Admin */}
+            <Route path="/superadmin/*" element={<SuperAdminRoutes />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

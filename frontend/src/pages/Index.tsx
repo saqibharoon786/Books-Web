@@ -8,13 +8,15 @@ import DailyDeals from "@/components/DailyDeals";
 import LatestNews from "@/components/LatestNews";
 import Newsletter from "@/components/Newsletter";
 import Footer from "@/components/Footer";
+import JudgmentSection from "@/components/judgment-section";
 
 const Index = () => {
   return (
     <div className="min-h-screen">
-      <Header />
-      <main>
+
         <HeroSection />
+        <JudgmentSection/>
+
         <NewArrivals />
         <BookFestival />
         <BestAuthor />
@@ -22,8 +24,7 @@ const Index = () => {
         <DailyDeals />
         <LatestNews />
         <Newsletter />
-      </main>
-      <Footer />
+
     </div>
   );
 };
