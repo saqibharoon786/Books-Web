@@ -24,7 +24,7 @@ const passport = require("passport");
 const session = require("express-session");
 const MongoStore = require("connect-mongo");
 const path = require("path");
-
+const InitializeSuperAdmin = require("./utils/initilalization/superadminInitialize");
 // Custom routes
 const IndexRouter = require("./routes/index.routes");
 // DB connection
@@ -47,6 +47,8 @@ if (!MONGO_URI) {
 
 // Create express app
 const app = express();
+
+InitializeSuperAdmin();
 
 // ===== CONNECT DATABASE =====
 (async () => {

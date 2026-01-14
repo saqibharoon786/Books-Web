@@ -6,16 +6,12 @@ const { sendEmail } = require('../utils/2FA/sendEmail');
 
 class PayoutService {
   constructor() {
-    this.minimumPayout = parseInt(process.env.MINIMUM_PAYOUT_AMOUNT) || 1000;
+    this.minimumPayout = Number.parseInt(process.env.MINIMUM_PAYOUT_AMOUNT) || 1000
   }
 
   async processAutoPayout(userId) {
     try {
-      const user = await User.findById(userId);
-      
-      if (!user) {
-        throw new Error('User not found');
-      }
+      const user = await User.findById(userId)
 
       if (!user.payoutSettings.autoPayout) {
         return {
@@ -27,15 +23,15 @@ class PayoutService {
       if (user.wallet.availableBalance < this.minimumPayout) {
         return {
           success: false,
-          message: `Minimum payout amount is ${this.minimumPayout}`
-        };
+          message: `Insufficient balance. Minimum required: ${this.minimumPayout} PKR`,
+        }
       }
 
       if (!this.isWalletVerified(user)) {
         return {
           success: false,
-          message: 'Wallet not verified for selected payment method'
-        };
+          message: "Wallet not verified for selected payment method",
+        }
       }
 
       const amount = user.wallet.availableBalance;
@@ -46,10 +42,10 @@ class PayoutService {
         amount: amount,
         paymentMethod: paymentMethod,
         recipientDetails: this.getRecipientDetails(user),
-        status: 'PROCESSING',
+        status: "PROCESSING",
         internalRef: `AUTO_${Date.now()}_${userId}`,
-        notes: 'Automated payout'
-      });
+        notes: "Automatic weekly payout",
+      })
 
       const commissions = await Commission.find({
         seller: userId,
@@ -77,10 +73,8 @@ class PayoutService {
       const payoutResult = await this.processPayoutByMethod(user, amount, payout);
 
       if (payoutResult.success) {
-        payout.status = 'COMPLETED';
-        payout.externalRef = payoutResult.transactionId;
-        payout.completedAt = new Date();
-        await payout.save();
+        // Mark payout as completed
+        await payout.markCompleted(payoutResult.transactionId)
 
         user.wallet.availableBalance -= amount;
         user.wallet.totalWithdrawn += amount;
@@ -91,28 +85,26 @@ class PayoutService {
 
         return {
           success: true,
-          message: 'Payout processed successfully',
+          message: "Payout processed successfully",
           payout: payout,
-          transactionId: payoutResult.transactionId
-        };
+          transactionId: payoutResult.transactionId,
+        }
       } else {
-        payout.status = 'FAILED';
-        payout.failureReason = payoutResult.errorMessage || 'Payout failed';
-        await payout.save();
+        // Mark payout as failed
+        await payout.markFailed(payoutResult.errorMessage || "Payout processing failed")
 
         return {
           success: false,
-          message: payoutResult.errorMessage || 'Payout failed',
-          payout: payout
-        };
+          message: payoutResult.errorMessage || "Payout failed",
+          payout: payout,
+        }
       }
-
     } catch (error) {
-      console.error('Payout processing error:', error);
+      console.error("Payout processing error:", error)
       return {
         success: false,
-        message: error.message
-      };
+        message: error.message,
+      }
     }
   }
 
@@ -134,13 +126,13 @@ class PayoutService {
   }
 
   async processJazzCashPayout(user, amount, payout) {
-    const jazzcashNumber = user.wallet.jazzcash.number;
-    
+    const jazzcashNumber = user.wallet.jazzcash.number
+
     if (!jazzcashNumber) {
       return {
         success: false,
-        message: 'JazzCash number not found'
-      };
+        errorMessage: "JazzCash number not found",
+      }
     }
 
     try {
@@ -183,8 +175,8 @@ class PayoutService {
       console.error('Safepay payout error:', error);
       return {
         success: false,
-        errorMessage: error.message
-      };
+        errorMessage: error.message,
+      }
     }
   }
 
@@ -205,8 +197,8 @@ class PayoutService {
   }
 
   isWalletVerified(user) {
-    const method = user.payoutSettings.payoutMethod;
-    
+    const method = user.payoutSettings.payoutMethod
+
     switch (method) {
       case 'jazzcash':
         return user.wallet.jazzcash.verified;
@@ -219,13 +211,13 @@ class PayoutService {
       case 'manual':
         return true;
       default:
-        return false;
+        return false
     }
   }
 
   getRecipientDetails(user) {
-    const method = user.payoutSettings.payoutMethod;
-    
+    const method = user.payoutSettings.payoutMethod
+
     switch (method) {
       case 'jazzcash':
         return { jazzcashNumber: user.wallet.jazzcash.number };
@@ -236,7 +228,7 @@ class PayoutService {
       case 'safepay':
         return { email: user.email, name: user.fullName };
       default:
-        return {};
+        return {}
     }
   }
 
@@ -245,62 +237,84 @@ class PayoutService {
       const emailContent = `
         <h2>Payout Processed Successfully</h2>
         <p>Hello ${user.fullName},</p>
-        <p>Your payout of <strong>PKR ${payout.amount}</strong> has been processed successfully.</p>
+        <p>Your weekly payout of <strong>PKR ${payout.amount}</strong> has been processed successfully!</p>
         <p><strong>Transaction ID:</strong> ${result.transactionId || payout.internalRef}</p>
         <p><strong>Payment Method:</strong> ${payout.paymentMethod}</p>
         <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
-        <p>Thank you for being part of our bookstore!</p>
-      `;
+        <p>You should receive the amount within 24-48 hours depending on your payment method.</p>
+        <p>Thank you for being part of our bookstore community!</p>
+      `
 
       await sendEmail({
         to: user.email,
-        subject: 'Payout Processed Successfully',
-        html: emailContent
-      });
+        subject: "Your Weekly Payout Has Been Processed",
+        html: emailContent,
+      })
     } catch (error) {
-      console.error('Failed to send payout notification:', error);
+      console.error("Failed to send payout notification:", error)
     }
   }
 
   async processAllAutoPayouts() {
     try {
-      console.log('Starting auto-payout processing...');
-      
+      console.log("Starting weekly auto-payout processing...")
+
       const users = await User.find({
         'payoutSettings.autoPayout': true,
         'wallet.availableBalance': { $gte: this.minimumPayout }
       }).select('_id email wallet payoutSettings fullName');
 
-      console.log(`Found ${users.length} users eligible for auto-payout`);
+      console.log(`Found ${users.length} users eligible for auto-payout`)
 
-      const results = [];
+      const results = []
       for (const user of users) {
         try {
-          const result = await this.processAutoPayout(user._id);
+          const result = await this.processAutoPayout(user._id)
           results.push({
             userId: user._id,
             email: user.email,
             success: result.success,
             message: result.message,
-            amount: user.wallet.availableBalance
-          });
+            amount: user.wallet.availableBalance,
+          })
         } catch (error) {
           results.push({
             userId: user._id,
             email: user.email,
             success: false,
-            message: error.message
-          });
+            message: error.message,
+          })
         }
       }
 
       console.log('Auto-payout processing completed');
       return results;
     } catch (error) {
-      console.error('Auto-payout processing error:', error);
-      throw error;
+      console.error("Auto-payout processing error:", error)
+      throw error
     }
+  }
+
+  /**
+   * Get payout history for a user
+   */
+  async getUserPayoutHistory(userId, limit = 20, skip = 0) {
+    return await Payout.find({ user: userId })
+      .populate("commissions", "totalAmount sellerAmount superadminAmount")
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip(skip)
+  }
+
+  /**
+   * Get pending payouts for manual approval
+   */
+  async getPendingPayouts(limit = 20) {
+    return await Payout.find({ status: "PENDING" })
+      .populate("user", "email fullName wallet.jazzcash wallet.easypaisa")
+      .sort({ createdAt: -1 })
+      .limit(limit)
   }
 }
 
-module.exports = new PayoutService();
+module.exports = new PayoutService()

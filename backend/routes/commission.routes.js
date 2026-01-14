@@ -17,17 +17,19 @@ const {
 // ================== 🔐 PROTECTED ROUTES ==================
 router.use(protect);
 
-// User's commissions
+// -------- USER ROUTES --------
 router.get("/my-commissions", getMyCommissions);
 router.get("/summary", getCommissionSummary);
 router.get("/by-book/:bookId", getCommissionsByBook);
-router.get("/:id", getCommissionById);
 
-// ================== 🧑‍⚖️ SUPERADMIN ONLY ==================
+// -------- SUPERADMIN ROUTES --------
 router.get("/all", isSuperAdmin, getAllCommissions);
 router.get("/stats", isSuperAdmin, getCommissionStats);
 router.get("/daily-report", isSuperAdmin, getDailyCommissionReport);
 router.get("/export/csv", isSuperAdmin, exportCommissionsToCSV);
 router.patch("/:commissionId/status", isSuperAdmin, updateCommissionStatus);
+
+// -------- DYNAMIC ROUTES (LAST) --------
+router.get("/:id", getCommissionById);
 
 module.exports = router;

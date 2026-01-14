@@ -108,7 +108,6 @@ const getAllCommissions = async (req, res, next) => {
     if (req.user.role !== 'superadmin') {
       return next(new AppError('Only superadmin can view all commissions', 403));
     }
-
     const { 
       page = 1, 
       limit = 20, 

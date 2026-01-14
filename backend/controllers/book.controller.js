@@ -521,7 +521,6 @@ const purchaseBook = async (req, res, next) => {
       book: book._id,
       paymentStatus: 'completed'
     });
-
     if (existingPurchase) {
       return next(new AppError('You have already purchased this book', 400));
     }
@@ -561,7 +560,6 @@ const purchaseBook = async (req, res, next) => {
   }
 };
 
-// Read full book (after purchase)
 const readFullBook = async (req, res, next) => {
   try {
     const { format = 'text' } = req.query;
@@ -574,6 +572,11 @@ const readFullBook = async (req, res, next) => {
 
     // Check if user has purchased the book for PDF format
     if (format === 'pdf') {
+      // For PDF, check if user is authenticated
+      if (!req.user) {
+        return next(new AppError('Authentication required for PDF format', 401));
+      }
+      
       const purchase = await Purchase.findOne({
         user: req.user.id,
         book: book._id,
@@ -584,11 +587,10 @@ const readFullBook = async (req, res, next) => {
         return next(new AppError('Please purchase this book to access PDF format', 403));
       }
 
-      // Increment download count for PDF
       await book.incrementDownload();
     }
 
-    // Text format is always accessible
+    // Text format is always accessible (no authentication required)
     const responseData = {
       book: {
         _id: book._id,
@@ -615,6 +617,7 @@ const readFullBook = async (req, res, next) => {
       data: responseData,
     });
   } catch (error) {
+    console.error('Error in readFullBook:', error);
     next(error);
   }
 };

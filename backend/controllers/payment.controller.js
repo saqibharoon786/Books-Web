@@ -7,9 +7,14 @@ const { createPaymentWithCommission, verifyPayment, SafepayService } = require("
 
 const createPayment = async (req, res) => {
   try {
+    console.log('=== PAYMENT CREATE START ===');
+    console.log('User:', req.user);
+    console.log('Book ID:', req.body.bookId);
+    
     const { bookId } = req.body;
     
     if (!req.user || !req.user.id) {
+      console.log('No user found');
       return res.status(401).json({ 
         success: false, 
         message: "Authentication required" 
@@ -21,13 +26,18 @@ const createPayment = async (req, res) => {
     const book = await Book.findById(bookId).populate('uploader');
     
     if (!book) {
+      console.log('Book not found for ID:', bookId);
       return res.status(404).json({ 
         success: false, 
         message: "Book not found" 
       });
     }
     
+    console.log('Book found:', book.title);
+    console.log('Book uploader:', book.uploader);
+    
     if (book.status !== 'approved') {
+      console.log('Book not approved:', book.status);
       return res.status(400).json({ 
         success: false, 
         message: "Book is not available for purchase" 
@@ -41,6 +51,7 @@ const createPayment = async (req, res) => {
     });
     
     if (existingPurchase) {
+      console.log('Already purchased');
       return res.status(400).json({ 
         success: false, 
         message: "You have already purchased this book" 
@@ -50,6 +61,10 @@ const createPayment = async (req, res) => {
     const amount = book.discountedPrice || book.price;
     const sellerType = book.uploaderType || 'admin';
     
+    console.log('Amount:', amount);
+    console.log('Seller type:', sellerType);
+    console.log('Seller ID:', book.uploader?._id);
+    
     // Create payment with commission calculation
     const paymentData = await createPaymentWithCommission(
       amount, 
@@ -58,6 +73,8 @@ const createPayment = async (req, res) => {
       book.uploader._id,
       sellerType
     );
+    
+    console.log('Payment data received:', paymentData);
     
     // Save payment record
     const paymentRecord = await Payment.create({
@@ -81,6 +98,8 @@ const createPayment = async (req, res) => {
       }
     });
     
+    console.log('Payment record created:', paymentRecord._id);
+    
     return res.status(200).json({
       success: true,
       message: "Payment initiated successfully",
@@ -96,9 +115,11 @@ const createPayment = async (req, res) => {
     });
   } catch (error) {
     console.error("Payment Creation Error:", error);
+    console.error("Error stack:", error.stack);
     return res.status(500).json({ 
       success: false, 
-      message: error.message || "Internal Server Error" 
+      message: error.message || "Internal Server Error",
+      error: error.toString()
     });
   }
 };
@@ -141,7 +162,8 @@ const safepayReturn = async (req, res) => {
           <p>No tracker found</p>
         </body>
         </html>
-      `);
+      `;
+      return res.status(400).send(debugHtml);
     }
     
     // Verify payment status with Safepay
@@ -199,7 +221,8 @@ const safepayReturn = async (req, res) => {
           amount: payment.amount,
           currency: 'PKR',
           status: 'completed',
-          timestamp: new Date()
+          timestamp: new Date(),
+          verificationData: verification.data || verification
         }
       });
       
@@ -215,7 +238,8 @@ const safepayReturn = async (req, res) => {
         superadminAmount: payment.commission.superadminAmount,
         commissionPercentage: payment.commission.commissionPercentage,
         status: "PROCESSED",
-        processedAt: new Date()
+        processedAt: new Date(),
+        tracker: tracker
       });
       
       // Distribute earnings
@@ -223,6 +247,9 @@ const safepayReturn = async (req, res) => {
       await distributePurchaseEarnings(purchase);
       
       payment.earningsStatus = 'PROCESSED';
+      payment.processedAt = new Date();
+      
+      console.log(`Payment ${tracker} completed. Commission distributed. Purchase ID: ${purchase._id}`);
       
       console.log(`Payment ${tracker} completed. Commission distributed.`);
       
@@ -232,16 +259,28 @@ const safepayReturn = async (req, res) => {
         <head>
           <title>Payment Successful</title>
           <style>
-            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
-            .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-            .success { color: #28a745; font-size: 24px; margin-bottom: 20px; }
-            .details { text-align: left; background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; }
-            .btn { display: inline-block; padding: 10px 30px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+            .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+            .success { color: #28a745; font-size: 28px; margin-bottom: 20px; }
+            .icon { font-size: 60px; margin-bottom: 20px; }
+            .details { text-align: left; background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 25px 0; border: 1px solid #e9ecef; }
+            .detail-item { margin: 10px 0; padding-bottom: 10px; border-bottom: 1px solid #dee2e6; }
+            .detail-item:last-child { border-bottom: none; }
+            .detail-label { font-weight: bold; color: #495057; }
+            .detail-value { color: #6c757d; }
+            .btn { display: inline-block; padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 25px; margin-top: 20px; font-weight: bold; border: none; cursor: pointer; transition: transform 0.2s; }
+            .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+            .countdown { color: #6c757d; font-size: 14px; margin-top: 15px; }
+            .loader { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
           </style>
         </head>
         <body>
           <div class="container">
-            <div class="success">✅ Payment Successful!</div>
+            <div class="icon">✅</div>
+            <div class="success">🎉 Payment Successful!</div>
+            <p>Your book has been purchased successfully and is now available for download.</p>
+            
             <div class="details">
               <p><strong>Transaction ID:</strong> ${payment.transactionRef}</p>
               <p><strong>Tracker:</strong> ${tracker}</p>
@@ -253,6 +292,7 @@ const safepayReturn = async (req, res) => {
             <p>You will be redirected to your dashboard in 5 seconds...</p>
             <a href="${process.env.FRONTEND_URL || 'http://localhost:3001'}/dashboard/books" class="btn">Go to Dashboard</a>
           </div>
+          
           <script>
             setTimeout(() => {
               window.location.href = '${process.env.FRONTEND_URL || 'http://localhost:3001'}/dashboard/books';
@@ -304,16 +344,32 @@ const safepayReturn = async (req, res) => {
       <head>
         <title>Payment Processing Error</title>
         <style>
-          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-          .container { max-width: 600px; margin: 0 auto; padding: 40px; border: 1px solid #ddd; border-radius: 10px; }
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
+          .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+          .error { color: #ffc107; font-size: 24px; margin-bottom: 20px; }
+          .icon { font-size: 60px; margin-bottom: 20px; }
+          .btn { display: inline-block; padding: 10px 30px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }
+          .debug { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: left; font-family: monospace; font-size: 12px; overflow: auto; max-height: 200px; }
         </style>
       </head>
       <body>
         <div class="container">
-          <h1>⚠️ Payment Processing Error</h1>
+          <div class="icon">⚠️</div>
+          <div class="error">Payment Processing Error</div>
           <p>An error occurred while processing your payment.</p>
+          
+          <div class="debug">
+            <strong>Error Details:</strong><br>
+            ${error.message}<br><br>
+            <strong>Stack Trace:</strong><br>
+            ${error.stack}
+          </div>
+          
           <p>Please contact support with your transaction details.</p>
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:3001'}/support" class="btn">Contact Support</a>
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:3001'}" class="btn" style="background: #6c757d; margin-left: 10px;">Go Home</a>
         </div>
+        
         <script>
           setTimeout(() => {
             window.location.href = '${process.env.FRONTEND_URL || 'http://localhost:3001'}';

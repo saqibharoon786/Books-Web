@@ -112,6 +112,12 @@ paymentSchema.methods.distributeEarnings = async function() {
     await seller.addEarnings(this.commission.sellerAmount);
   }
   
+  if (seller) {
+  seller.wallet.totalEarnings += purchase.commission.sellerAmount;
+  seller.wallet.availableBalance += purchase.commission.sellerAmount;  // Add this line
+  await seller.save();
+}
+
   // Update superadmin's wallet
   const superadmin = await mongoose.model('User').findOne({ role: 'superadmin' });
   if (superadmin && this.commission.superadminAmount > 0) {

@@ -17,7 +17,7 @@ const baseUploadDir = path.join(__dirname, '../uploads');
 // Ensure base uploads directory exists
 ensureDirectoryExists(baseUploadDir);
 
-// ✅ FIXED: Configure storage
+// ✅ Configure storage with ALL file types including payout screenshots
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     let folder = 'uploads/';
@@ -39,11 +39,19 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    const ext = path.extname(file.originalname);
+    
+    // For payout screenshots, add user ID to filename for better organization
+    if (file.fieldname === 'paymentScreenshot' && req.user) {
+      const userId = req.user.id || 'unknown';
+      cb(null, `payout-${userId}-${uniqueSuffix}${ext}`);
+    } else {
+      cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+    }
   }
 });
 
-// ✅ FIXED: File filter - updated field name
+// ✅ File filter - updated with all supported file types
 const fileFilter = (req, file, cb) => {
   // Check file types
   // ✅ CHANGED: coverImage to coverImages (plural)
@@ -71,6 +79,7 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+// Create multer instance
 const upload = multer({
   storage,
   fileFilter,
@@ -79,7 +88,7 @@ const upload = multer({
   }
 });
 
-// ✅ FIXED: Convert uploaded images to WebP format
+// ✅ Convert uploaded images to WebP format (optimize images)
 const convertToWebP = async (req, res, next) => {
   try {
     // Skip if no files
@@ -88,6 +97,7 @@ const convertToWebP = async (req, res, next) => {
     }
 
     const processFile = async (file) => {
+      // Only convert image files (skip PDFs, text files, etc.)
       if (file && file.mimetype.startsWith('image/') && !file.mimetype.includes('webp')) {
         const newFilename = file.filename.replace(path.extname(file.filename), '.webp');
         const newPath = path.join(__dirname, '../', file.destination, newFilename);
@@ -131,31 +141,47 @@ const convertToWebP = async (req, res, next) => {
   }
 };
 
-// ✅ FIXED: Middleware for book file uploads - updated field name
+// ✅ FIXED: Middleware for book file uploads
 const uploadFiles = [upload.fields([
   { name: 'coverImages', maxCount: 5 },
   { name: 'pdfFile', maxCount: 1 },
   { name: 'textFile', maxCount: 1 }
 ]), convertToWebP];
 
-// Single file upload middleware (WITH WebP conversion)
+// ✅ Single file upload middleware
 const uploadSingle = (fieldName) => {
   return [upload.single(fieldName), convertToWebP];
 };
 
-// Multiple files upload middleware (WITH WebP conversion)
+// ✅ Multiple files upload middleware
 const uploadMultiple = (fields) => {
   return [upload.fields(fields), convertToWebP];
 };
 
-// CNIC upload middleware (WITH WebP conversion)
+// ✅ CNIC upload middleware
 const uploadCNIC = [upload.fields([
-  { name: 'frontImage', maxCount: 1 },
-  { name: 'backImage', maxCount: 1 }
+  { name: 'cnicFront', maxCount: 1 },
+  { name: 'cnicBack', maxCount: 1 }
 ]), convertToWebP];
 
-// Profile image upload middleware (WITH WebP conversion)
+// ✅ Profile image upload middleware
 const uploadProfile = [upload.single('image'), convertToWebP];
+
+// ✅ ADDED: Payout screenshot upload middleware
+const uploadPayoutScreenshot = [upload.single('paymentScreenshot'), convertToWebP];
+
+// ✅ ADDED: Payout screenshot with multiple files
+const uploadPayoutScreenshots = [upload.fields([
+  { name: 'paymentScreenshot', maxCount: 3 } // Allow multiple screenshots if needed
+]), convertToWebP];
+
+// ✅ ADDED: Generic image upload for any image field
+const uploadImage = (fieldName, maxCount = 1) => {
+  if (maxCount > 1) {
+    return [upload.array(fieldName, maxCount), convertToWebP];
+  }
+  return [upload.single(fieldName), convertToWebP];
+};
 
 module.exports = {
   upload,

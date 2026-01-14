@@ -7,7 +7,7 @@ const {
   updateProfile,
   updatePassword,
   uploadProfileImage,
-//   verifyCNIC,
+  verifyCNIC,
   getAllUsers,
 //   getUserById,
 //   updateUser,
@@ -24,7 +24,7 @@ router.get("/profile", getProfile);
 router.patch("/update-profile", updateProfile);
 router.patch("/change-password", updatePassword);
 router.patch("/upload-profile-image", uploadProfile, uploadProfileImage);
-// router.post("/verify-cnic", uploadCNIC, verifyCNIC);
+router.post("/upload-cnic", uploadCNIC, verifyCNIC);
 
 // ================== 🧑‍⚖️ SUPERADMIN ROUTES ==================
 router.get("/get-users", isSuperAdmin, getAllUsers);
