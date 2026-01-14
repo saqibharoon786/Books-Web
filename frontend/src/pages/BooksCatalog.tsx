@@ -22,7 +22,7 @@ const BooksCatalog = () => {
       setLoading(true);
       const query = searchParams.get('q');
       const category = searchParams.get('category');
-      
+
       let response;
       if (query) {
         response = await BookService.searchBooks(query);
@@ -101,7 +101,7 @@ const BooksCatalog = () => {
 
         {/* Books Grid/List */}
         <div className={
-          viewMode === 'grid' 
+          viewMode === 'grid'
             ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
             : "space-y-6"
         }>
@@ -150,8 +150,8 @@ const BooksCatalog = () => {
         {books.length === 0 && (
           <div className="text-center py-12">
             <p className="text-muted-foreground text-lg">No books found.</p>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="mt-4"
               onClick={() => {
                 setSearchParams({});

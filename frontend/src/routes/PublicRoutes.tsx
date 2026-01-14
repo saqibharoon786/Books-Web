@@ -1,7 +1,6 @@
 // routes/publicRoutes.tsx
 import { Routes, Route } from "react-router-dom";
 import Index from "@/pages/Index";
-import Auth from "@/pages/Auth";
 import BookDetail from "@/pages/BookDetail";
 import BookReader from "@/pages/BookReader"; 
 import BooksCatalog from "@/pages/BooksCatalog";
@@ -16,7 +15,7 @@ const PublicRoutes = () => {
       <main className="min-h-screen">
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
+          
           <Route path="/book/:id" element={<BookDetail />} />
           <Route path="/book/:id/read" element={<BookReader />} />
           <Route path="/catalog" element={<BooksCatalog />} />
