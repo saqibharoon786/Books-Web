@@ -51,10 +51,7 @@ const paymentSchema = new mongoose.Schema(
       default: "PENDING",
     },
     
-    jazzcashResponse: {
-      type: Object,
-      default: {},
-    },
+
     
     // Earnings Status
     earningsStatus: {
@@ -68,6 +65,16 @@ const paymentSchema = new mongoose.Schema(
       ref: "Payout",
     },
     
+    tracker: {
+      type: String,
+      sparse: true
+    },
+    
+    safepayResponse: {
+      type: Object,
+      default: {},
+    },
+
     metadata: {
       ipAddress: String,
       userAgent: String,
@@ -105,6 +112,12 @@ paymentSchema.methods.distributeEarnings = async function() {
     await seller.addEarnings(this.commission.sellerAmount);
   }
   
+  if (seller) {
+  seller.wallet.totalEarnings += purchase.commission.sellerAmount;
+  seller.wallet.availableBalance += purchase.commission.sellerAmount;  // Add this line
+  await seller.save();
+}
+
   // Update superadmin's wallet
   const superadmin = await mongoose.model('User').findOne({ role: 'superadmin' });
   if (superadmin && this.commission.superadminAmount > 0) {
@@ -118,4 +131,4 @@ paymentSchema.methods.distributeEarnings = async function() {
 };
 
 const Payment = mongoose.model("Payment", paymentSchema);
-module.exports = Payment;
+module.exports = Payment; 

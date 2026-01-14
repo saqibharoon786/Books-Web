@@ -332,10 +332,30 @@ updateBook: async (id: string): Promise<ApiResponse> => {
   },
 
   // ================== 👤 CUSTOMER ROUTES ==================
-  purchaseBook: async (id: string, data: PurchaseBookData): Promise<ApiResponse<{ purchase: any }>> => {
-    const response = await api.post<ApiResponse<{ purchase: any }>>(`/book/${id}/purchase`, data);
-    return response.data;
-  },
+// In BookService.ts, update the purchaseBook function:
+purchaseBook: async (id: string, data: PurchaseBookData): Promise<ApiResponse<{ 
+  purchase?: any; 
+  paymentUrl?: string; 
+  tracker?: string;
+  nextStep?: string;
+  redirectUrl?: string;
+  paymentId?: string;
+  transactionRef?: string;
+}>> => {
+  const response = await api.post<ApiResponse<{ 
+    purchase?: any; 
+    paymentUrl?: string; 
+    tracker?: string;
+    nextStep?: string;
+    redirectUrl?: string;
+    paymentId?: string;
+    transactionRef?: string;
+  }>>(`/payments/create`, {
+    bookId: id,  // Send bookId in the body
+    paymentMethod: data.paymentMethod
+  });
+  return response.data;
+},
 
   getMyPurchasedBooks: async (page: number = 1, limit: number = 10): Promise<ApiResponse<{ purchases: any[] }>> => {
     const response = await api.get<ApiResponse<{ purchases: any[] }>>('/book/my/purchases', {
@@ -344,19 +364,28 @@ updateBook: async (id: string): Promise<ApiResponse> => {
     return response.data;
   },
 
-  readFullBook: async (id: string, format: 'pdf' | 'text' = 'text'): Promise<ApiResponse<{
-    book: Book;
-    filePath: string;
-    format: string;
-    isFree: boolean;
-    totalPages: number;
-  }>> => {
-    const response = await api.get<ApiResponse>(`/book/${id}/read`, { params: { format } });
-    if (response.data.success && response.data.data?.book) {
-      response.data.data.book = processBookData(response.data.data.book);
-    }
-    return response.data;
-  },
+readFullBook: async (id: string, format: 'pdf' | 'text' = 'text'): Promise<ApiResponse<{
+  book: Book;
+  filePath?: string; // Make optional
+  textContent?: string; // Add this
+  textFormat?: string; // Add this
+  textLanguage?: string; // Add this
+  format: string;
+  isFree: boolean;
+  totalPages: number;
+  wordCount?: number; // Add this
+  estimatedReadingTime?: number; // Add this
+}>> => {
+  const response = await api.get<ApiResponse>(`/book/${id}/read`, { 
+    params: { format },
+    timeout: 30000 
+  });
+  
+  if (response.data.success && response.data.data?.book) {
+    response.data.data.book = processBookData(response.data.data.book);
+  }
+  return response.data;
+},
 
   checkPurchaseStatus: async (id: string): Promise<ApiResponse<{ hasPurchased: boolean; purchase: any }>> => {
     const response = await api.get<ApiResponse<{ hasPurchased: boolean; purchase: any }>>(`/book/${id}/check-purchase`);

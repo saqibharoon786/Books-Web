@@ -17,18 +17,35 @@ const baseUploadDir = path.join(__dirname, '../uploads');
 // Ensure base uploads directory exists
 ensureDirectoryExists(baseUploadDir);
 
-// ✅ FIXED: Configure storage
+// ✅ Configure storage with ALL file types including payout screenshots
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     let folder = 'uploads/';
     
-    // ✅ CHANGED: coverImage to coverImages (plural)
-    if (file.fieldname === 'coverImages') folder += 'covers/';
-    else if (file.fieldname === 'pdfFile') folder += 'pdfs/';
-    else if (file.fieldname === 'textFile') folder += 'texts/';
-    else if (file.fieldname === 'frontImage' || file.fieldname === 'backImage') folder += 'cnic/';
-    else if (file.fieldname === 'image') folder += 'profiles/';
-    else folder += 'others/';
+    // Determine folder based on file fieldname
+    switch (file.fieldname) {
+      case 'coverImages':
+        folder += 'covers/';
+        break;
+      case 'pdfFile':
+        folder += 'pdfs/';
+        break;
+      case 'textFile':
+        folder += 'texts/';
+        break;
+      case 'cnicFront':
+      case 'cnicBack':
+        folder += 'cnic/';
+        break;
+      case 'image':
+        folder += 'profiles/';
+        break;
+      case 'paymentScreenshot': // ✅ ADDED: Payout screenshot upload
+        folder += 'payouts/';
+        break;
+      default:
+        folder += 'others/';
+    }
     
     const fullPath = path.join(__dirname, '../', folder);
     
@@ -39,38 +56,64 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    const ext = path.extname(file.originalname);
+    
+    // For payout screenshots, add user ID to filename for better organization
+    if (file.fieldname === 'paymentScreenshot' && req.user) {
+      const userId = req.user.id || 'unknown';
+      cb(null, `payout-${userId}-${uniqueSuffix}${ext}`);
+    } else {
+      cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+    }
   }
 });
 
-// ✅ FIXED: File filter - updated field name
+// ✅ File filter - updated with all supported file types
 const fileFilter = (req, file, cb) => {
-  // Check file types
-  // ✅ CHANGED: coverImage to coverImages (plural)
-  if (file.fieldname === 'coverImages' || file.fieldname === 'image' || 
-      file.fieldname === 'frontImage' || file.fieldname === 'backImage') {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new AppError('Please upload only images', 400), false);
-    }
-  } else if (file.fieldname === 'pdfFile') {
-    if (file.mimetype === 'application/pdf') {
-      cb(null, true);
-    } else {
-      cb(new AppError('Please upload only PDF files', 400), false);
-    }
-  } else if (file.fieldname === 'textFile') {
-    if (file.mimetype === 'text/plain' || file.mimetype === 'application/octet-stream') {
-      cb(null, true);
-    } else {
-      cb(new AppError('Please upload only text files', 400), false);
-    }
-  } else {
-    cb(new AppError('Unsupported file type', 400), false);
+  // Allowed image types
+  const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+  const allowedPdfTypes = ['application/pdf'];
+  const allowedTextTypes = ['text/plain', 'application/octet-stream'];
+  
+  // Check file types based on fieldname
+  switch (file.fieldname) {
+    // Image fields
+    case 'coverImages':
+    case 'image':
+    case 'cnicFront':
+    case 'cnicBack':
+    case 'paymentScreenshot': // ✅ ADDED
+      if (allowedImageTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new AppError('Please upload only images (JPEG, PNG, WEBP, GIF)', 400), false);
+      }
+      break;
+    
+    // PDF fields
+    case 'pdfFile':
+      if (allowedPdfTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new AppError('Please upload only PDF files', 400), false);
+      }
+      break;
+    
+    // Text fields
+    case 'textFile':
+      if (allowedTextTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new AppError('Please upload only text files', 400), false);
+      }
+      break;
+    
+    default:
+      cb(new AppError('Unsupported file type or field name', 400), false);
   }
 };
 
+// Create multer instance
 const upload = multer({
   storage,
   fileFilter,
@@ -79,7 +122,7 @@ const upload = multer({
   }
 });
 
-// ✅ FIXED: Convert uploaded images to WebP format
+// ✅ Convert uploaded images to WebP format (optimize images)
 const convertToWebP = async (req, res, next) => {
   try {
     // Skip if no files
@@ -88,6 +131,7 @@ const convertToWebP = async (req, res, next) => {
     }
 
     const processFile = async (file) => {
+      // Only convert image files (skip PDFs, text files, etc.)
       if (file && file.mimetype.startsWith('image/') && !file.mimetype.includes('webp')) {
         const newFilename = file.filename.replace(path.extname(file.filename), '.webp');
         const newPath = path.join(__dirname, '../', file.destination, newFilename);
@@ -131,31 +175,47 @@ const convertToWebP = async (req, res, next) => {
   }
 };
 
-// ✅ FIXED: Middleware for book file uploads - updated field name
+// ✅ FIXED: Middleware for book file uploads
 const uploadFiles = [upload.fields([
   { name: 'coverImages', maxCount: 5 },
   { name: 'pdfFile', maxCount: 1 },
   { name: 'textFile', maxCount: 1 }
 ]), convertToWebP];
 
-// Single file upload middleware (WITH WebP conversion)
+// ✅ Single file upload middleware
 const uploadSingle = (fieldName) => {
   return [upload.single(fieldName), convertToWebP];
 };
 
-// Multiple files upload middleware (WITH WebP conversion)
+// ✅ Multiple files upload middleware
 const uploadMultiple = (fields) => {
   return [upload.fields(fields), convertToWebP];
 };
 
-// CNIC upload middleware (WITH WebP conversion)
+// ✅ CNIC upload middleware
 const uploadCNIC = [upload.fields([
-  { name: 'frontImage', maxCount: 1 },
-  { name: 'backImage', maxCount: 1 }
+  { name: 'cnicFront', maxCount: 1 },
+  { name: 'cnicBack', maxCount: 1 }
 ]), convertToWebP];
 
-// Profile image upload middleware (WITH WebP conversion)
+// ✅ Profile image upload middleware
 const uploadProfile = [upload.single('image'), convertToWebP];
+
+// ✅ ADDED: Payout screenshot upload middleware
+const uploadPayoutScreenshot = [upload.single('paymentScreenshot'), convertToWebP];
+
+// ✅ ADDED: Payout screenshot with multiple files
+const uploadPayoutScreenshots = [upload.fields([
+  { name: 'paymentScreenshot', maxCount: 3 } // Allow multiple screenshots if needed
+]), convertToWebP];
+
+// ✅ ADDED: Generic image upload for any image field
+const uploadImage = (fieldName, maxCount = 1) => {
+  if (maxCount > 1) {
+    return [upload.array(fieldName, maxCount), convertToWebP];
+  }
+  return [upload.single(fieldName), convertToWebP];
+};
 
 module.exports = {
   upload,
@@ -164,5 +224,27 @@ module.exports = {
   uploadMultiple,
   uploadCNIC,
   uploadProfile,
-  convertToWebP 
+  uploadPayoutScreenshot, // ✅ EXPORTED
+  uploadPayoutScreenshots, // ✅ EXPORTED
+  uploadImage, // ✅ EXPORTED
+  convertToWebP,
+  
+  // Helper function to get file URL
+  getFileUrl: (file) => {
+    if (!file) return null;
+    return `/${file.path.replace(/\\/g, '/').split('uploads/')[1]}`;
+  },
+  
+  // Helper function to delete file
+  deleteFile: (filePath) => {
+    try {
+      if (filePath && fs.existsSync(path.join(__dirname, '../uploads', filePath))) {
+        fs.unlinkSync(path.join(__dirname, '../uploads', filePath));
+        return true;
+      }
+    } catch (error) {
+      console.error('Error deleting file:', error);
+    }
+    return false;
+  }
 };

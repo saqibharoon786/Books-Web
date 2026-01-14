@@ -92,34 +92,35 @@ const uploadProfileImage = async (req, res, next) => {
 };
 
 // Verify CNIC
-// const verifyCNIC = async (req, res, next) => {
-//   try {
-//     const { cnicNumber } = req.body;
-    
-//     if (!cnicNumber || !req.files?.frontImage || !req.files?.backImage) {
-//       return next(new AppError('CNIC number and both images are required', 400));
-//     }
+const verifyCNIC = async (req, res, next) => {
+  try {
+    const { cnicNumber } = req.body;
 
-//     const user = await User.findByIdAndUpdate(
-//       req.user.id,
-//       {
-//         'cnic.number': cnicNumber,
-//         'cnic.frontImage': req.files.frontImage[0].path,
-//         'cnic.backImage': req.files.backImage[0].path,
-//         'cnic.verified': false, // Will be verified by admin
-//       },
-//       { new: true }
-//     );
+    // These are the REAL field names multer is expecting
+    if (!req.files?.cnicFront?.[0] || !req.files?.cnicBack?.[0]) {
+      return next(new AppError("Both CNIC front and back images are required", 400));
+    }
 
-//     res.status(200).json({
-//       success: true,
-//       message: 'CNIC submitted for verification',
-//       data: { user: user.getPublicProfile() },
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        'cnic.number': cnicNumber,
+        'cnic.frontImage': req.files.cnicFront[0].path,    // ← changed
+        'cnic.backImage': req.files.cnicBack[0].path,      // ← changed
+        'cnic.verified': false,
+      },
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'CNIC submitted for verification',
+      data: { user: user.getPublicProfile() },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // Get all users (Superadmin only)
 const getAllUsers = async (req, res, next) => {
@@ -297,7 +298,7 @@ module.exports = {
   updateProfile,
   updatePassword,
   uploadProfileImage,
-//   verifyCNIC,
+  verifyCNIC,
   getAllUsers,
 //   getUserById,
 //   updateUser,

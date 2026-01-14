@@ -172,7 +172,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     await onSubmit(submitData);
 
     // 👇 Check role and navigate accordingly
-    if (role === "admin") {
+    if (userRole === "admin") {
       navigate("/admin/shop");
     } else {
       navigate("/superadmin/shop");

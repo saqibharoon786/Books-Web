@@ -36,11 +36,12 @@ const purchaseSchema = new mongoose.Schema(
       ref: "Payment",
     },
     
-    paymentMethod: {
-      type: String,
-      enum: ["jazzcash", "easypaisa", "bank"],
-      required: true,
-    },
+  paymentMethod: {
+  type: String,
+  enum: ['safepay', 'jazzcash', 'easypaisa', 'bank', 'card', 'wallet'], 
+  required: true,
+  default: 'safepay' 
+},
     
     paymentStatus: {
       type: String,
@@ -92,6 +93,10 @@ const purchaseSchema = new mongoose.Schema(
       default: "pending"
     },
     
+        safepayTracker: {
+      type: String,
+      sparse: true
+    },
     // Payout reference
     payout: {
       type: mongoose.Schema.Types.ObjectId,

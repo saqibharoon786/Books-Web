@@ -1,24 +1,56 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const { protect, isSuperAdmin } = require("../middleware/auth.middleware");
-
 const {
-  getAllPayouts,
-  getUserPayouts,
-  processPayout,
-  triggerAutoPayouts,
-  getPayoutStats
-} = require("../controllers/payout.controller");
+  updatePaymentInfo,
+  getPaymentInfo,
+  requestPayout,
+  getMyPayoutRequests,
+  cancelPayoutRequest,
+  getPayoutStats,
+  
+  getPendingPayoutRequests,
+  approvePayoutRequest,
+  completePayoutRequest,
+  rejectPayoutRequest,
+  getAllPayoutHistory
+} = require('../controllers/payout.controller');
 
-// ================== 🔐 PROTECTED ROUTES ==================
-router.use(protect);
+// const {
+//   getPendingCNICVerifications,
+//   verifyCNIC,
+//   rejectCNIC,
+//   getPendingPaymentVerifications,
+//   verifyJazzCash,
+//   verifyEasyPaisa,
+//   verifyBankAccount
+// } = require('../controllers/payout.controller');
 
-router.get("/my-payouts", getUserPayouts);
+const { protect, isAdmin, isSuperAdmin } = require("../middleware/auth.middleware");
+const { uploadPayoutScreenshot } = require('../middleware/upload.middleware');
 
-// ================== 🧑‍⚖️ SUPERADMIN ONLY ==================
-router.get("/all", isSuperAdmin, getAllPayouts);
-router.get("/stats", isSuperAdmin, getPayoutStats);
-router.post("/process/:payoutId", isSuperAdmin, processPayout);
-router.post("/trigger-auto-payouts", isSuperAdmin, triggerAutoPayouts);
+// ======================
+// USER ROUTES (For Admins)
+// ======================
+
+// Payment information
+router.put('/payment-info', protect, isAdmin, updatePaymentInfo);
+router.get('/payment-info', protect, isAdmin, getPaymentInfo);
+
+// Payout requests
+router.post('/request', protect, isAdmin, requestPayout);
+router.get('/my-requests', protect, isAdmin, getMyPayoutRequests);
+router.delete('/cancel/:requestId', protect, isAdmin, cancelPayoutRequest);
+router.get('/stats', protect, isAdmin, getPayoutStats);
+
+// ======================
+// SUPERVISOR ROUTES (For Superadmin)
+// ======================
+
+// Payout management
+router.get('/pending-requests', protect, isSuperAdmin, getPendingPayoutRequests);
+router.put('/approve/:requestId', protect, isSuperAdmin, approvePayoutRequest);
+router.put('/complete/:requestId', protect, isSuperAdmin,uploadPayoutScreenshot, completePayoutRequest);
+router.put('/reject/:requestId', protect, isSuperAdmin, rejectPayoutRequest);
+router.get('/history', protect, isSuperAdmin, getAllPayoutHistory);
 
 module.exports = router;

@@ -45,9 +45,13 @@ router.patch("/:id/view", incrementViewCount);
 router.get("/categories/all", getAllCategories);
 router.get("/categories/popular", getPopularCategories);
 
-// ================== 👩‍💼 ADMIN ROUTES ==================
-router.use(protect);
 
+
+// ================== 👤 AUTHENTICATED ROUTES ==================
+router.use(protect); 
+router.get("/:id/read", readFullBook);
+
+// ================== 👩‍💼 ADMIN ROUTES ==================
 router.post("/upload-book", isAdmin, uploadFiles, uploadBook);
 router.get("/my/books", isAdmin, getMyBooks);
 router.patch("/update/my/books/:id", isAdmin, updateBook);
@@ -62,7 +66,6 @@ router.patch("/admin/:id/reject", isSuperAdmin, rejectBook);
 // ================== 👤 CUSTOMER ROUTES ==================
 router.post("/:id/purchase", isCustomer, purchaseBook);
 router.get("/my/purchases", isCustomer, getMyPurchasedBooks);
-router.get("/:id/read", isCustomer, readFullBook);
 router.get("/:id/check-purchase", isCustomer, checkPurchaseStatus);
 router.patch("/:id/rating", isCustomer, updateBookRating);
 
