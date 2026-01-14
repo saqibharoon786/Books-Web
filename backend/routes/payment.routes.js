@@ -26,6 +26,11 @@ router.post("/create", isCustomer, createPayment);
 // Verify payment status
 router.get("/verify/:paymentId", verifyPayment);
 
+// ================== 🌐 PUBLIC ROUTES (No Auth Required) ==================
+// Safepay return URL (callback from Safepay)
+router.get("/safepay/return", safepayReturn);
 
+// Safepay webhook (server-to-server notifications)
+router.post("/safepay/webhook", safepayWebhook);
 
 module.exports = router;
