@@ -40,10 +40,10 @@ const Header = () => {
       {/* Single Line Header - Professional Bookstore Theme */}
       <header className="fixed top-0 w-full bg-gradient-to-r from-slate-900 via-navy-900 to-slate-900 border-b border-slate-800/80 shadow-xl z-50 py-4">
         <div className="container mx-auto px-4 flex items-center justify-between">
-          
+
           {/* Left: Logo */}
-          <div 
-            className="cursor-pointer flex items-center gap-3 group" 
+          <div
+            className="cursor-pointer flex items-center gap-3 group"
             onClick={() => navigate("/")}
           >
             <div className="relative">
@@ -52,8 +52,8 @@ const Header = () => {
             </div>
             <div className="flex flex-col">
               <h1 className="text-xl font-bold tracking-tight text-white font-sans">
-                BookStore
-                <span className="text-blue-400 ml-1 font-black">Pro</span>
+                AMYSCHOLAR
+                <span className="text-blue-400 ml-1 font-black">Net</span>
               </h1>
               <div className="text-[10px] text-blue-300/70 font-medium tracking-wider uppercase mt-[-2px]">
                 Legal Publications & Resources
@@ -66,8 +66,8 @@ const Header = () => {
             <ul className="flex items-center gap-1 bg-slate-800/50 backdrop-blur-sm px-3 py-2 rounded-2xl border border-slate-700/50">
               {navItems.map((item) => (
                 <li key={item.path}>
-                  <a 
-                    href={item.path} 
+                  <a
+                    href={item.path}
                     className="text-sm text-white/80 hover:text-white hover:bg-slate-700/50 px-4 py-2 rounded-xl transition-all duration-300 font-medium relative group"
                   >
                     {item.label}
@@ -82,10 +82,10 @@ const Header = () => {
           <div className="flex items-center gap-3">
             {/* User Profile */}
             <div className="relative">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleUserClick} 
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleUserClick}
                 className="rounded-xl text-white hover:bg-slate-700/50 border border-slate-700/50 group"
                 title={isAuthenticated ? "My Account" : "Sign In"}
               >
@@ -100,20 +100,20 @@ const Header = () => {
 
             {/* Auth Button */}
             {isAuthenticated ? (
-              <Button 
+              <Button
                 variant="ghost"
-                size="sm" 
-                onClick={handleAuthClick} 
+                size="sm"
+                onClick={handleAuthClick}
                 className="rounded-xl text-white hover:bg-slate-700/50 border border-slate-700/50 hidden sm:flex items-center gap-2"
               >
                 <LogOut className="h-4 w-4" />
                 <span>Sign Out</span>
               </Button>
             ) : (
-              <Button 
-                variant="default" 
-                size="sm" 
-                onClick={handleAuthClick} 
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleAuthClick}
                 className="rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/20 hidden sm:flex items-center gap-2"
               >
                 <User className="h-4 w-4" />
@@ -122,9 +122,9 @@ const Header = () => {
             )}
 
             {/* Mobile Menu Toggle */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="lg:hidden rounded-xl text-white hover:bg-slate-700/50 border border-slate-700/50"
             >
@@ -141,9 +141,9 @@ const Header = () => {
                 {/* Navigation Items */}
                 <div className="grid grid-cols-2 gap-2">
                   {navItems.map((item) => (
-                    <a 
+                    <a
                       key={item.path}
-                      href={item.path} 
+                      href={item.path}
                       className="text-white/80 hover:text-white hover:bg-slate-800/50 rounded-xl px-4 py-3 transition-all duration-300 text-sm font-medium border border-slate-700/30"
                       onClick={() => setIsMenuOpen(false)}
                     >
@@ -159,9 +159,9 @@ const Header = () => {
                       <div className="text-center text-white/60 text-sm">
                         Logged in as <span className="text-blue-300">{user?.email}</span>
                       </div>
-                      <Button 
+                      <Button
                         variant="ghost"
-                        size="sm" 
+                        size="sm"
                         onClick={() => {
                           handleAuthClick();
                           setIsMenuOpen(false);
@@ -173,9 +173,9 @@ const Header = () => {
                       </Button>
                     </>
                   ) : (
-                    <Button 
-                      variant="default" 
-                      size="sm" 
+                    <Button
+                      variant="default"
+                      size="sm"
                       onClick={() => {
                         handleAuthClick();
                         setIsMenuOpen(false);
