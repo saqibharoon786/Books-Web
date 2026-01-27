@@ -67,7 +67,6 @@ const judgmentSchema = new mongoose.Schema(
     },
     decisionDate: {
       type: Date,
-      required: true,
     },
 
     // Legal Information
@@ -82,9 +81,16 @@ const judgmentSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    textFile: {
+    
+    // ✅ CHANGED: Replaced textFile with textContent and textFormat
+    textContent: {
       type: String,
-      required: true,
+      required: [true, 'Text content is required']
+    },
+    textFormat: {
+      type: String,
+      enum: ["plain", "html", "markdown"],
+      default: "plain"
     },
     
     // ✅ ADDED: Cover Images

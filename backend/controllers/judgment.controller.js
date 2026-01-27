@@ -19,6 +19,8 @@ const uploadJudgment = async (req, res, next) => {
       keywords,
       summary,
       price,
+      textContent,
+      textFormat = 'plain',
       currency = 'PKR'
     } = req.body;
 
@@ -28,11 +30,11 @@ const uploadJudgment = async (req, res, next) => {
       return next(new AppError('Judgment with this citation already exists', 400));
     }
 
-    // ✅ UPDATED: Process cover images with relative paths like book controller
+    // ✅ UPDATED: Process cover images with relative paths
     const coverImages = req.files?.coverImages ? 
       req.files.coverImages.map(file => `/uploads/covers/${file.filename}`) : [];
 
-    // ✅ UPDATED: Process files with relative paths like book controller
+    // Create judgment
     const judgment = await Judgment.create({
       citation,
       caseNumber,
@@ -48,8 +50,10 @@ const uploadJudgment = async (req, res, next) => {
       summary,
       price,
       currency,
+      // ✅ UPDATED: Use textContent and textFormat instead of textFile
+      textContent,
+      textFormat,
       pdfFile: req.files?.pdfFile?.[0] ? `/uploads/pdfs/${req.files.pdfFile[0].filename}` : null,
-      textFile: req.files?.textFile?.[0] ? `/uploads/texts/${req.files.textFile[0].filename}` : null,
       coverImages, // ✅ UPDATED: Save cover images with relative paths
       uploader: req.user.id,
     });
@@ -150,7 +154,8 @@ const updateJudgment = async (req, res, next) => {
     const allowedFields = [
       'citation', 'caseNumber', 'parties', 'caseTitle', 'court',
       'judge', 'caseType', 'category', 'year', 'decisionDate',
-      'keywords', 'summary', 'price', 'currency', 'isFeatured'
+      'keywords', 'summary', 'price', 'currency', 'textContent',
+      'textFormat', 'isFeatured'
     ];
 
     const updateData = {};
@@ -169,13 +174,11 @@ const updateJudgment = async (req, res, next) => {
       updateData.coverImages = req.files.coverImages.map(file => `/uploads/covers/${file.filename}`);
     }
 
-    // ✅ UPDATED: Handle file updates with relative paths
+    // ✅ UPDATED: Handle PDF file update with relative paths
     if (req.files?.pdfFile) {
       updateData.pdfFile = `/uploads/pdfs/${req.files.pdfFile[0].filename}`;
     }
-    if (req.files?.textFile) {
-      updateData.textFile = `/uploads/texts/${req.files.textFile[0].filename}`;
-    }
+    // Note: No textFile handling since we now use textContent and textFormat
 
     const judgment = await Judgment.findByIdAndUpdate(
       req.params.id,
@@ -196,6 +199,7 @@ const updateJudgment = async (req, res, next) => {
     next(error);
   }
 };
+
 // Delete judgment (Superadmin only)
 const deleteJudgment = async (req, res, next) => {
   try {
@@ -310,6 +314,7 @@ const searchJudgments = async (req, res, next) => {
         { parties: { $regex: q, $options: 'i' } },
         { judge: { $regex: q, $options: 'i' } },
         { summary: { $regex: q, $options: 'i' } },
+        { textContent: { $regex: q, $options: 'i' } }, // ✅ ADDED: Search in textContent
       ];
     }
 
@@ -411,13 +416,16 @@ const readJudgment = async (req, res, next) => {
     }
 
     // For text format, it's free - no purchase required
-    // Just return the text file path or content
-
+    // Return the text content directly
     res.status(200).json({
       success: true,
       data: {
-        judgment,
-        textFile: judgment.textFile,
+        judgment: {
+          ...judgment.toObject(),
+          // Include only text content and format for reading
+          textContent: judgment.textContent,
+          textFormat: judgment.textFormat
+        },
         format: 'text',
         isFree: true,
       },
